@@ -1,0 +1,98 @@
+[
+  {
+    "name": "empty doc",
+    "adf": { "type": "doc", "version": 1, "content": [] },
+    "expected": ""
+  },
+  {
+    "name": "single paragraph plain text",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [{ "type": "text", "text": "Refactoring der Login-Komponente" }]
+        }
+      ]
+    },
+    "expected": "Refactoring der Login-Komponente"
+  },
+  {
+    "name": "two paragraphs separated by newline",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        { "type": "paragraph", "content": [{ "type": "text", "text": "Erste Zeile" }] },
+        { "type": "paragraph", "content": [{ "type": "text", "text": "Zweite Zeile" }] }
+      ]
+    },
+    "expected": "Erste Zeile\nZweite Zeile"
+  },
+  {
+    "name": "bullet list",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "bulletList",
+          "content": [
+            {
+              "type": "listItem",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Punkt A" }] }
+              ]
+            },
+            {
+              "type": "listItem",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Punkt B" }] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "expected": "- Punkt A\n- Punkt B"
+  },
+  {
+    "name": "mention rendered as @DisplayName",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Pair-Sitzung mit " },
+            {
+              "type": "mention",
+              "attrs": { "id": "557058:abc-def", "text": "@Tanja Beispiel" }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": "Pair-Sitzung mit @Tanja Beispiel"
+  },
+  {
+    "name": "hard break inside paragraph",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Erste Halbzeile" },
+            { "type": "hardBreak" },
+            { "type": "text", "text": "Zweite Halbzeile" }
+          ]
+        }
+      ]
+    },
+    "expected": "Erste Halbzeile\nZweite Halbzeile"
+  }
+]

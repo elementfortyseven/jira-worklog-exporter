@@ -1,0 +1,57 @@
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.spec
+
+# PyInstaller
+*.manifest
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Logs and exports (the tool's own output)
+*.log
+exports/
+jira_worklogs_*.csv
+jira_worklogs_*.log
+
+# Local secrets / config (never commit)
+.env
+.env.local
+*.token
+secrets.json
+
+# Test fixtures with real data (use anonymized in tests/fixtures/)
+tests/fixtures/real_*.json

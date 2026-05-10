@@ -1,0 +1,89 @@
+name: build-windows
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to attach assets to a release
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }} / Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Type check
+        run: mypy
+
+      - name: Test
+        run: pytest
+
+  build-windows:
+    name: Build Windows binaries
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,build]"
+
+      - name: Build CLI
+        run: pyinstaller --onefile --console --name jwe-cli --paths src src/jwe/__main__.py
+
+      - name: Build GUI
+        run: pyinstaller --onefile --windowed --name jwe-gui --paths src src/jwe/__main__.py
+
+      - name: Compute SHA-256
+        shell: pwsh
+        run: |
+          Get-FileHash dist/jwe-cli.exe -Algorithm SHA256 | Format-List
+          Get-FileHash dist/jwe-gui.exe -Algorithm SHA256 | Format-List
+          $hashCli = (Get-FileHash dist/jwe-cli.exe -Algorithm SHA256).Hash.ToLower()
+          $hashGui = (Get-FileHash dist/jwe-gui.exe -Algorithm SHA256).Hash.ToLower()
+          "$hashCli  jwe-cli.exe" | Out-File -FilePath dist/SHA256SUMS.txt -Encoding ascii
+          "$hashGui  jwe-gui.exe" | Out-File -FilePath dist/SHA256SUMS.txt -Append -Encoding ascii
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/jwe-cli.exe
+            dist/jwe-gui.exe
+            dist/SHA256SUMS.txt
