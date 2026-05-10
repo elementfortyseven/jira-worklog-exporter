@@ -58,6 +58,33 @@
     "expected": "- Punkt A\n- Punkt B"
   },
   {
+    "name": "ordered list",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "orderedList",
+          "content": [
+            {
+              "type": "listItem",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Erster Schritt" }] }
+              ]
+            },
+            {
+              "type": "listItem",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Zweiter Schritt" }] }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "expected": "1. Erster Schritt\n2. Zweiter Schritt"
+  },
+  {
     "name": "mention rendered as @DisplayName",
     "adf": {
       "type": "doc",
@@ -94,5 +121,88 @@
       ]
     },
     "expected": "Erste Halbzeile\nZweite Halbzeile"
+  },
+  {
+    "name": "inline card renders as url",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Ticket: " },
+            {
+              "type": "inlineCard",
+              "attrs": { "url": "https://example.atlassian.net/browse/PROJ-123" }
+            }
+          ]
+        }
+      ]
+    },
+    "expected": "Ticket: https://example.atlassian.net/browse/PROJ-123"
+  },
+  {
+    "name": "code block with multi-line content",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "codeBlock",
+          "attrs": { "language": "python" },
+          "content": [{ "type": "text", "text": "def hello():\n    print('hi')" }]
+        }
+      ]
+    },
+    "expected": "```\ndef hello():\n    print('hi')\n```"
+  },
+  {
+    "name": "heading followed by paragraph",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "heading",
+          "attrs": { "level": 2 },
+          "content": [{ "type": "text", "text": "Abschnitt 1" }]
+        },
+        {
+          "type": "paragraph",
+          "content": [{ "type": "text", "text": "Inhalt" }]
+        }
+      ]
+    },
+    "expected": "Abschnitt 1\nInhalt"
+  },
+  {
+    "name": "blockquote renders content inline",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "blockquote",
+          "content": [
+            { "type": "paragraph", "content": [{ "type": "text", "text": "Zitierter Text" }] }
+          ]
+        }
+      ]
+    },
+    "expected": "Zitierter Text"
+  },
+  {
+    "name": "rule produces visible separator",
+    "adf": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        { "type": "paragraph", "content": [{ "type": "text", "text": "Oben" }] },
+        { "type": "rule" },
+        { "type": "paragraph", "content": [{ "type": "text", "text": "Unten" }] }
+      ]
+    },
+    "expected": "Oben\n\n---\nUnten"
   }
 ]
