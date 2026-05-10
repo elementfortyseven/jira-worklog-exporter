@@ -7,17 +7,10 @@ that touches ``requests`` directly; higher-level wrappers
 (:mod:`~jwe.api.search`, :mod:`~jwe.api.worklog`, :mod:`~jwe.api.user`)
 delegate here.
 
-The client configures retry-with-backoff on transient failures (HTTP 429,
-500, 502, 503, 504) and respects ``Retry-After`` headers per RFC 6585.
-
-TODO (claude code, in this order):
-1. Implement :meth:`JiraCloudClient.connect` — call ``GET /rest/api/3/myself``
-   and return the parsed identity. Wire it into the CLI/GUI connection test.
-2. Implement :meth:`JiraCloudClient.request` — generic JSON request method
-   used by all higher-level wrappers. Handle 429 with ``Retry-After``,
-   transient 5xx with backoff, and produce well-typed errors for 401/403/404.
-3. Add structured exception types for auth-vs-permission-vs-not-found so
-   the CLI's exit code mapping (PRD §11) works cleanly.
+Retry policy lives entirely in the session adapter (urllib3). The
+:meth:`JiraCloudClient.request` method receives the final response — whether
+that is a 200 after transparent retries or a 429 once retries are exhausted —
+and maps it to a typed result or exception.
 """
 
 from __future__ import annotations
@@ -30,7 +23,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from jwe.api.auth import AuthStrategy
+from jwe.api.auth import AuthMode, AuthStrategy
 from jwe.api.url_builder import URLBuilder
 
 logger = logging.getLogger(__name__)
@@ -100,16 +93,14 @@ class JiraCloudClient:
         return cls(auth=auth, url_builder=url_builder, session=session)
 
     def connect(self) -> dict[str, Any]:
-        """Verify auth by calling ``GET /rest/api/3/myself``.
-
-        Returns the parsed JSON identity (``accountId``, ``displayName``,
-        possibly ``emailAddress``). Used as a connection test in both CLI
-        and GUI.
-
-        TODO: implement using :meth:`request`. Translate 401 → AuthenticationError
-        with a Mode-A-aware message that mentions scopes if appropriate.
-        """
-        raise NotImplementedError("Implement connect() — see CLAUDE.md §7 step 2")
+        """Verify auth by calling ``GET /rest/api/3/myself`` and return the identity dict."""
+        identity: dict[str, Any] = self.request("GET", "/rest/api/3/myself")
+        logger.info(
+            "Authenticated as %s (%s)",
+            self.auth.identity_label(),
+            identity.get("displayName", "unknown"),
+        )
+        return identity
 
     def request(
         self,
@@ -119,7 +110,10 @@ class JiraCloudClient:
         params: dict[str, Any] | None = None,
         json: Any = None,
     ) -> Any:
-        """Issue an authenticated JSON request.
+        """Issue an authenticated JSON request and return the parsed response body.
+
+        Retry and backoff are handled transparently by the session adapter
+        (urllib3). This method receives the final response.
 
         Args:
             method: HTTP method (``GET``, ``POST``, …).
@@ -134,12 +128,62 @@ class JiraCloudClient:
             AuthenticationError: on HTTP 401.
             JiraPermissionError: on HTTP 403.
             NotFoundError: on HTTP 404.
-            JiraApiError: on any other unexpected error.
-
-        TODO: implement. Map status codes to the typed exceptions above.
-        Log the URL but never the auth header or body.
+            JiraApiError: on any other non-2xx response.
         """
-        raise NotImplementedError("Implement request() — see CLAUDE.md §7 step 2")
+        url = self.url_builder.build(path)
+        logger.debug("→ %s %s", method, url)
+
+        try:
+            response = self.session.request(
+                method,
+                url,
+                params=params,
+                json=json,
+                timeout=self.timeout,
+                allow_redirects=False,
+            )
+        except requests.RequestException as exc:
+            raise JiraApiError(f"Network error during {method} {url}: {exc}") from exc
+
+        logger.debug("← %d %s", response.status_code, url)
+
+        if response.ok:
+            try:
+                return response.json()
+            except requests.exceptions.JSONDecodeError as exc:
+                raise JiraApiError(
+                    f"Unexpected non-JSON response from {url} (HTTP {response.status_code})"
+                ) from exc
+
+        status = response.status_code
+
+        if status == 401:
+            if self.auth.mode is AuthMode.SERVICE_ACCOUNT:
+                raise AuthenticationError(
+                    "HTTP 401 — authentication failed. For Service Account tokens the most "
+                    "likely cause is missing token scopes. Recreate the token with scopes: "
+                    "read:jira-work, read:jira-user (or granular: read:issue:jira, "
+                    "read:issue-worklog:jira, read:user:jira, read:project:jira, "
+                    "read:jql:jira). Scopes cannot be changed after token creation."
+                )
+            raise AuthenticationError(
+                "HTTP 401 — authentication failed. Check your email address and API token."
+            )
+
+        if status == 403:
+            raise JiraPermissionError(
+                f"HTTP 403 — permission denied at {url}. For Service Accounts: confirm the "
+                "account has a project role with 'View All Worklogs' permission."
+            )
+
+        if status == 404:
+            raise NotFoundError(
+                f"HTTP 404 — resource not found: {url}. "
+                "In Service Account mode, verify the Cloud ID is correct "
+                "('jwe export --discover-cloud-id <site-url>')."
+            )
+
+        raise JiraApiError(f"HTTP {status} — {method} {url}")
 
     def close(self) -> None:
         """Release underlying connections."""
