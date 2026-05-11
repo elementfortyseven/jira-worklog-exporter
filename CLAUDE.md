@@ -85,6 +85,24 @@ Avoid Bash-specific syntax in any shell commands you generate:
 Git Bash is available on the user's machine for any tool that genuinely
 requires bash, but normal development workflows go through PowerShell.
 
+#### Troubleshooting: git push from Claude Code fails with publickey error
+
+Symptom: `ssh -T git@github.com` succeeds from any shell, but `git push`
+fails with "Permission denied (publickey)" specifically when invoked
+from Claude Code's subshell.
+
+Cause: Git for Windows ships its own bundled `ssh.exe` (under the Git
+install's `usr/bin/`), which Git invokes for SSH operations regardless
+of `PATH`. The bundled SSH does not communicate with the Windows
+OpenSSH agent, where your loaded key lives.
+
+Fix: point Git at the Windows OpenSSH binary explicitly:
+
+    git config --global core.sshCommand "C:/Windows/System32/OpenSSH/ssh.exe"
+
+This is a one-time machine-level setting and applies to all Git repos
+on the host.
+
 ---
 
 ## 3. The architectural cornerstone: dual authentication
