@@ -20,11 +20,11 @@ Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date r
 | `jwe.api.auth` | ✅ implemented | AuthStrategy abstraction with two concrete classes |
 | `jwe.api.url_builder` | ✅ implemented | Maps auth mode → base URL |
 | `jwe.api.tenant_info` | ✅ implemented | Cloud ID discovery via `/_edge/tenant_info` |
-| `jwe.api.client` | ✅ partial | Session with retry/backoff; concrete request methods stubbed |
-| `jwe.api.search` | 🟡 stub | Wraps `POST /rest/api/3/search/jql` with pagination |
-| `jwe.api.worklog` | 🟡 stub | Wraps `GET /rest/api/3/issue/{key}/worklog` |
-| `jwe.api.user` | 🟡 stub | Wraps `GET /rest/api/3/user/search` |
-| `jwe.adf` | 🟡 stub | ADF → plain text walker |
+| `jwe.api.client` | ✅ implemented | connect() and request() with typed exceptions; 100% coverage, 24 tests |
+| `jwe.api.search` | ✅ implemented | build_jql and iter_issues with nextPageToken pagination; 100% coverage, 10 tests |
+| `jwe.api.worklog` | ✅ implemented | iter_worklogs with offset pagination; 100% coverage, 8 tests |
+| `jwe.api.user` | ✅ implemented | get_myself and search_users; 100% coverage, 7 tests |
+| `jwe.adf` | ✅ implemented | adf_to_text recursive walker; 100% coverage, 28 tests |
 | `jwe.exporter` | 🟡 stub | Domain logic: orchestrate filters → CSV stream |
 | `jwe.csv_writer` | 🟡 stub | Streaming CSV writer |
 | `jwe.config` | 🟡 stub | Dataclass for all config |
@@ -65,6 +65,25 @@ pyinstaller jwe-gui.spec
 ```
 
 `.spec` files for PyInstaller are not yet generated — create them on first build with `pyinstaller --onefile --name jwe-cli src/jwe/__main__.py` and edit afterward.
+
+### Shell environment
+
+This project runs on Windows 11 with PowerShell as the primary shell.
+Avoid Bash-specific syntax in any shell commands you generate:
+
+- **No heredocs** (`cat <<'EOF' ... EOF`) — use PowerShell here-strings
+  (`@"..."@`) or, for `git commit`, multiple `-m` flags instead.
+- **No `&&` or `||` for command chaining** — use `;` for sequential
+  execution or separate invocations.
+- **No POSIX environment-variable syntax** (`export VAR=value`,
+  `$VAR`) — use `$env:VAR = "value"` and reference as `$env:VAR`.
+- **No POSIX pipe-and-redirect tricks** like `cat file | grep pattern` —
+  use `Get-Content` / `Select-String` / PowerShell pipelines, or invoke
+  the relevant tool directly.
+- **Commit messages**: do not append `Co-Authored-By: Claude` trailers.
+
+Git Bash is available on the user's machine for any tool that genuinely
+requires bash, but normal development workflows go through PowerShell.
 
 ---
 
@@ -172,12 +191,12 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 ## 7. Implementation order (suggested)
 
 1. **Verify foundations.** Run `pytest tests/test_url_builder.py tests/test_auth.py` — they must pass before touching anything else.
-2. **`jwe.api.client`** — finish `connect()` and a generic `request()` method that uses the AuthStrategy + URLBuilder. Wire up retry on 429/5xx with respect for `Retry-After`.
-3. **`jwe.adf`** — pure function `adf_to_text(adf_node) -> str`. Easiest to test in isolation; build with the fixture file.
-4. **`jwe.api.user`** — `search_users(query) -> list[User]` and `get_myself() -> User`.
-5. **`jwe.api.search`** — `iter_issues(jql, fields) -> Iterator[IssueRef]` with `nextPageToken` pagination.
-6. **`jwe.api.worklog`** — `iter_worklogs(issue_key, since, until) -> Iterator[Worklog]` with offset pagination.
-7. **`jwe.config`** — dataclass capturing every CLI/GUI input. Validation lives here.
+2. ✅ **`jwe.api.client`** — finish `connect()` and a generic `request()` method that uses the AuthStrategy + URLBuilder. Wire up retry on 429/5xx with respect for `Retry-After`.
+3. ✅ **`jwe.adf`** — pure function `adf_to_text(adf_node) -> str`. Easiest to test in isolation; build with the fixture file.
+4. ✅ **`jwe.api.user`** — `search_users(query) -> list[User]` and `get_myself() -> User`.
+5. ✅ **`jwe.api.search`** — `iter_issues(jql, fields) -> Iterator[IssueRef]` with `nextPageToken` pagination.
+6. ✅ **`jwe.api.worklog`** — `iter_worklogs(issue_key, since, until) -> Iterator[Worklog]` with offset pagination.
+7. **`jwe.config`** *(current next)* — dataclass capturing every CLI/GUI input. Validation lives here.
 8. **`jwe.csv_writer`** — context manager that opens the file, writes header, appends rows, flushes per row.
 9. **`jwe.exporter`** — orchestrate everything. This is where the data flow in §4 lives.
 10. **`jwe.cli`** — argparse, env-var fallback, exit codes per PRD §11.
@@ -198,6 +217,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 - **Docstrings:** Google style. The first line is one sentence. Keep them brief.
 - **Error messages are user-facing.** Especially for auth failures, give the user a concrete next step (see PRD §13).
 - **No print-debugging committed.** Use `logger.debug` and `--verbose`.
+- **Shell commands target PowerShell, not bash.** See §2.
 
 ---
 
