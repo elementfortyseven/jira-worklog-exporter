@@ -27,7 +27,7 @@ Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date r
 | `jwe.adf` | ✅ implemented | adf_to_text recursive walker; 100% coverage, 28 tests |
 | `jwe.config` | ✅ implemented | ExportConfig dataclass with validate and to_redacted_dict; 100% coverage, 30 tests |
 | `jwe.csv_writer` | ✅ implemented | WorklogCsvWriter context manager; 97% coverage, 15 tests |
-| `jwe.exporter` | 🟡 stub | Domain logic: orchestrate filters → CSV stream |
+| `jwe.exporter` | ✅ implemented | run_export generator; 90% coverage, 8 tests |
 | `jwe.i18n` | 🟡 stub | de/en string tables |
 | `jwe.cli` | 🟡 stub | argparse entry point |
 | `jwe.gui` | 🟡 stub | Tkinter UI |
@@ -216,7 +216,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 6. ✅ **`jwe.api.worklog`** — `iter_worklogs(issue_key, since, until) -> Iterator[Worklog]` with offset pagination.
 7. ✅ **`jwe.config`** — dataclass capturing every CLI/GUI input. Validation lives here.
 8. ✅ **`jwe.csv_writer`** — context manager that opens the file, writes header, appends rows, flushes per row.
-9. **`jwe.exporter`** *(current next)* — orchestrate everything. This is where the data flow in §4 lives.
+9. ✅ **`jwe.exporter`** — orchestrate everything. This is where the data flow in §4 lives.
 10. **`jwe.cli`** — argparse, env-var fallback, exit codes per PRD §11.
 11. **`jwe.i18n`** — extract strings as we go; don't try to retrofit later.
 12. **`jwe.gui`** — last, because by this point all the building blocks exist. Don't block the Tk main loop on long-running calls; run the export in a worker thread and post progress events back via a `queue.Queue`.
