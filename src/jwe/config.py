@@ -4,24 +4,22 @@ Both the CLI (argparse) and GUI (Tk form) ultimately produce an
 :class:`ExportConfig` and hand it to :func:`jwe.exporter.run_export`.
 Validation lives in :meth:`ExportConfig.validate` so both entry points share
 the same rules.
-
-TODO (claude code):
-1. Flesh out :class:`ExportConfig` with all fields named in PRD §11.
-2. Add :meth:`validate` to enforce regex constraints (cloud_id, project_keys,
-   site_url) and cross-field rules (e.g. ``cloud_id`` required iff
-   ``auth_mode is SERVICE_ACCOUNT``).
-3. Add :func:`from_env` for environment-variable defaults (PRD FR-08).
-4. Add :func:`to_redacted_dict` for safe logging — never include the token.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
 
 from jwe.api.auth import AuthHeaderStyle, AuthMode
+from jwe.api.url_builder import validate_cloud_id, validate_site_url
+
+_PROJECT_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+$")
+_VALID_DELIMITERS = {",", ";"}
+_VALID_API_VERSIONS = {2, 3}
 
 
 class ColumnProfile(StrEnum):
@@ -66,15 +64,79 @@ class ExportConfig:
     dry_run: bool = False
 
     def validate(self) -> None:
-        """Validate the config, raising :class:`ValueError` on the first issue.
+        """Validate the config, raising :class:`ValueError` on the first issue."""
+        if not self.user_account_ids:
+            raise ValueError("user_account_ids must not be empty")
 
-        TODO: implement per PRD §11 and §6.1. See CLAUDE.md §7 step 7.
-        """
-        raise NotImplementedError("Implement ExportConfig.validate")
+        if self.from_date is None:
+            raise ValueError("from_date must be set")
+        if self.to_date is None:
+            raise ValueError("to_date must be set")
+        if self.from_date > self.to_date:
+            raise ValueError(
+                f"from_date {self.from_date} must not be after to_date {self.to_date}"
+            )
+
+        if not self.api_token:
+            raise ValueError("api_token must not be empty")
+
+        if self.auth_mode is AuthMode.SERVICE_ACCOUNT:
+            validate_cloud_id(self.cloud_id)
+            if not self.service_account_email:
+                raise ValueError("service_account_email must not be empty")
+            if not self.service_account_email.endswith("@serviceaccount.atlassian.com"):
+                raise ValueError(
+                    f"service_account_email {self.service_account_email!r} must end with "
+                    "'@serviceaccount.atlassian.com'"
+                )
+        elif self.auth_mode is AuthMode.USER_TOKEN:
+            validate_site_url(self.site_url)
+            if not self.email:
+                raise ValueError("email must not be empty")
+            if "@" not in self.email:
+                raise ValueError(
+                    f"email {self.email!r} does not look like an email address (missing '@')"
+                )
+
+        for key in self.project_keys:
+            if not _PROJECT_KEY_RE.match(key):
+                raise ValueError(
+                    f"Invalid project key {key!r}. Must match ^[A-Z][A-Z0-9_]+$"
+                )
+
+        if self.delimiter not in _VALID_DELIMITERS:
+            raise ValueError(
+                f"delimiter {self.delimiter!r} is not valid. Must be ',' or ';'"
+            )
+
+        if self.api_version not in _VALID_API_VERSIONS:
+            raise ValueError(
+                f"api_version {self.api_version} is not valid. Must be 2 or 3"
+            )
+
+        if not self.output_dir.is_dir():
+            raise ValueError(
+                f"output_dir {str(self.output_dir)!r} does not exist or is not a directory"
+            )
 
     def to_redacted_dict(self) -> dict[str, object]:
-        """Return a dict suitable for logging — token redacted.
-
-        TODO: implement.
-        """
-        raise NotImplementedError("Implement ExportConfig.to_redacted_dict")
+        """Return a dict suitable for logging — token redacted."""
+        return {
+            "auth_mode": self.auth_mode.value,
+            "cloud_id": self.cloud_id,
+            "service_account_email": self.service_account_email,
+            "auth_header": self.auth_header.value,
+            "site_url": self.site_url,
+            "email": self.email,
+            "api_token": "***",
+            "user_account_ids": self.user_account_ids,
+            "from_date": self.from_date.isoformat() if self.from_date is not None else None,
+            "to_date": self.to_date.isoformat() if self.to_date is not None else None,
+            "project_keys": self.project_keys,
+            "output_dir": str(self.output_dir),
+            "column_profile": self.column_profile.value,
+            "delimiter": self.delimiter,
+            "api_version": self.api_version,
+            "verbose": self.verbose,
+            "dry_run": self.dry_run,
+        }
