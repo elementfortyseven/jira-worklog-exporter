@@ -8,26 +8,21 @@ The ``startedAfter`` and ``startedBefore`` query params take **Unix epoch
 milliseconds** and let the server pre-filter by worklog date — this is much
 faster than fetching everything and filtering client-side, especially for
 issues with hundreds of worklogs.
-
-TODO (claude code):
-1. Implement :func:`iter_worklogs` with ``startAt``/``maxResults`` pagination.
-2. Convert dates to epoch-ms for the server-side filter; document timezone
-   semantics (Jira evaluates the filter in the calling user's TZ).
-3. Apply a client-side safety filter: only yield worklogs whose
-   ``author.accountId`` is in the requested set. This guards against any
-   surprises from JQL-vs-worklog-author mismatches.
-4. The comment field is in ADF (API v3) — yield it as-is; flatten in the
-   exporter via :mod:`jwe.adf`.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time
 from typing import Any
 
 from jwe.api.client import JiraCloudClient
+
+logger = logging.getLogger(__name__)
+
+_WORKLOG_PATH = "/rest/api/3/issue/{issue_key}/worklog"
 
 
 @dataclass(frozen=True)
@@ -61,6 +56,12 @@ class Worklog:
     updated: str
 
 
+def _to_epoch_ms(d: date, t: time) -> int:
+    # Uses system timezone — consistent with Jira's calling-user-timezone
+    # behavior for worklogDate JQL filters.
+    return int(datetime.combine(d, t).timestamp() * 1000)
+
+
 def iter_worklogs(
     client: JiraCloudClient,
     issue_key: str,
@@ -82,9 +83,54 @@ def iter_worklogs(
 
     Yields:
         :class:`Worklog` instances matching the filter.
-
-    TODO: implement. Convert dates → epoch-ms; paginate; filter; map JSON to
-    the Worklog dataclass. See CLAUDE.md §7 step 6.
     """
-    raise NotImplementedError("Implement iter_worklogs — see CLAUDE.md §7 step 6")
-    yield  # pragma: no cover
+    started_after = _to_epoch_ms(from_date, time(0, 0, 0))
+    started_before = _to_epoch_ms(to_date, time(23, 59, 59, 999000))
+    path = _WORKLOG_PATH.format(issue_key=issue_key)
+    start_at = 0
+
+    while True:
+        data: dict[str, Any] = client.request(
+            "GET",
+            path,
+            params={
+                "startAt": start_at,
+                "maxResults": page_size,
+                "startedAfter": started_after,
+                "startedBefore": started_before,
+            },
+        )
+        worklogs: list[dict[str, Any]] = data.get("worklogs", [])
+        total: int = data.get("total", 0)
+        logger.debug(
+            "worklog page for %s: startAt=%d, got=%d, total=%d",
+            issue_key,
+            start_at,
+            len(worklogs),
+            total,
+        )
+
+        for wl in worklogs:
+            author: dict[str, Any] = wl["author"]
+            if author["accountId"] not in account_ids:
+                continue
+            yield Worklog(
+                id=str(wl["id"]),
+                issue_key=issue_key,
+                author_account_id=author["accountId"],
+                author_display_name=author["displayName"],
+                author_email=author.get("emailAddress", ""),
+                started=wl["started"],
+                time_spent=wl["timeSpent"],
+                time_spent_seconds=int(wl["timeSpentSeconds"]),
+                comment_adf=wl.get("comment"),
+                created=wl["created"],
+                updated=wl["updated"],
+            )
+
+        # Double exit condition: last page detected by length OR total count.
+        # Defense-in-depth against inaccurate total fields in the response.
+        if len(worklogs) < page_size or start_at + len(worklogs) >= total:
+            break
+
+        start_at += len(worklogs)
