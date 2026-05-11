@@ -2,23 +2,24 @@
 
 Uses ``POST /rest/api/3/search/jql`` with ``nextPageToken`` pagination — the
 ``GET /search`` endpoint is deprecated in Cloud.
-
-TODO (claude code):
-1. Implement :func:`iter_issues` to paginate through results, yielding
-   :class:`IssueRef` instances.
-2. Request only the fields we actually need (``summary``, ``project``,
-   ``issuetype``) — issuetype helps with debugging atypical worklog patterns.
-3. Add a JQL builder helper :func:`build_jql` that quotes accountIds safely
-   and joins date/project clauses. Keep it pure and test it heavily.
 """
 
 from __future__ import annotations
 
+import logging
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 from jwe.api.client import JiraCloudClient
+
+logger = logging.getLogger(__name__)
+
+_PROJECT_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+$")
+_SEARCH_PATH = "/rest/api/3/search/jql"
+_SEARCH_FIELDS = ["summary", "project"]
 
 
 @dataclass(frozen=True)
@@ -47,19 +48,43 @@ def build_jql(
     """Build a JQL string for the worklog search.
 
     Args:
-        account_ids: Atlassian account IDs (cloud-form, with or without colon
-            prefix). Quoted in the output.
+        account_ids: Atlassian account IDs. Quoted in the output; embedded
+            double-quotes are escaped.
         from_date: Inclusive lower bound on ``worklogDate``.
         to_date: Inclusive upper bound on ``worklogDate``.
         project_keys: Optional project filter; ``None`` or empty means no
-            project restriction.
+            project restriction. Each key must match ``^[A-Z][A-Z0-9_]+$``.
 
     Returns:
         A JQL string suitable for ``POST /rest/api/3/search/jql``.
 
-    TODO: implement. See CLAUDE.md §5 for the exact form.
+    Raises:
+        ValueError: If ``account_ids`` is empty or any ``project_keys`` entry
+            fails validation.
     """
-    raise NotImplementedError("Implement build_jql — see CLAUDE.md §5")
+    if not account_ids:
+        raise ValueError("account_ids must not be empty")
+
+    if project_keys is not None:
+        for key in project_keys:
+            if not _PROJECT_KEY_RE.match(key):
+                raise ValueError(
+                    f"Invalid project key {key!r}. Must match ^[A-Z][A-Z0-9_]+$"
+                )
+
+    def _quote_id(aid: str) -> str:
+        return '"' + aid.replace('"', '\\"') + '"'
+
+    author_list = ", ".join(_quote_id(aid) for aid in account_ids)
+    clauses = [
+        f"worklogAuthor in ({author_list})",
+        f'worklogDate >= "{from_date.isoformat()}"',
+        f'worklogDate <= "{to_date.isoformat()}"',
+    ]
+    if project_keys:
+        clauses.append(f"project in ({', '.join(project_keys)})")
+
+    return " AND ".join(clauses)
 
 
 def iter_issues(
@@ -77,9 +102,31 @@ def iter_issues(
 
     Yields:
         :class:`IssueRef` for each matching issue.
-
-    TODO: implement using ``client.request("POST", "/rest/api/3/search/jql", ...)``.
-    Use ``nextPageToken`` for pagination; stop when the server omits it.
     """
-    raise NotImplementedError("Implement iter_issues — see CLAUDE.md §5 and §7 step 5")
-    yield  # pragma: no cover
+    next_page_token: str | None = None
+
+    while True:
+        body: dict[str, Any] = {
+            "jql": jql,
+            "fields": _SEARCH_FIELDS,
+            "maxResults": page_size,
+        }
+        if next_page_token is not None:
+            body["nextPageToken"] = next_page_token
+
+        data: dict[str, Any] = client.request("POST", _SEARCH_PATH, json=body)
+        logger.debug("search page returned %d issues", len(data.get("issues", [])))
+
+        for issue in data.get("issues", []):
+            fields = issue.get("fields", {})
+            project = fields.get("project", {})
+            yield IssueRef(
+                key=issue["key"],
+                summary=fields.get("summary", ""),
+                project_key=project.get("key", ""),
+                project_name=project.get("name", ""),
+            )
+
+        next_page_token = data.get("nextPageToken")
+        if next_page_token is None:
+            break
