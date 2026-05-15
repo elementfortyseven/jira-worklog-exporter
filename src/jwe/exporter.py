@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from jwe.api.auth import AuthMode, AuthStrategy, ServiceAccountAuth, UserTokenAuth
 from jwe.api.client import JiraCloudClient
 from jwe.api.search import build_jql, iter_issues
 from jwe.api.worklog import iter_worklogs
@@ -61,21 +60,6 @@ class ExportResult:
     output_path: str | None
 
 
-def _build_auth(config: ExportConfig) -> AuthStrategy:
-    if config.auth_mode is AuthMode.SERVICE_ACCOUNT:
-        return ServiceAccountAuth(
-            email=config.service_account_email,
-            token=config.api_token,
-            cloud_id=config.cloud_id,
-            header_style=config.auth_header,
-        )
-    return UserTokenAuth(
-        email=config.email,
-        token=config.api_token,
-        site_url=config.site_url,
-    )
-
-
 def _make_output_path(config: ExportConfig) -> Path:
     assert config.from_date is not None
     assert config.to_date is not None
@@ -106,7 +90,7 @@ def run_export(
     config.validate()
     logger.info("Starting export: %s", config.to_redacted_dict())
 
-    auth = _build_auth(config)
+    auth = config.build_auth()
     assert config.from_date is not None
     assert config.to_date is not None
 

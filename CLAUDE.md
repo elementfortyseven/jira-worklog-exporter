@@ -25,9 +25,10 @@ Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date r
 | `jwe.api.worklog` | ✅ implemented | iter_worklogs with offset pagination; 100% coverage, 8 tests |
 | `jwe.api.user` | ✅ implemented | get_myself and search_users; 100% coverage, 7 tests |
 | `jwe.adf` | ✅ implemented | adf_to_text recursive walker; 100% coverage, 28 tests |
-| `jwe.config` | ✅ implemented | ExportConfig dataclass with validate and to_redacted_dict; 100% coverage, 30 tests |
+| `jwe.config` | ✅ implemented | ExportConfig dataclass with validate, to_redacted_dict, and build_auth(); 100% coverage, 30 tests |
 | `jwe.csv_writer` | ✅ implemented | WorklogCsvWriter context manager; 97% coverage, 15 tests |
 | `jwe.exporter` | ✅ implemented | run_export generator; 90% coverage, 8 tests |
+| `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | 🟡 stub | de/en string tables |
 | `jwe.cli` | 🟡 stub | argparse entry point |
 | `jwe.gui` | 🟡 stub | Tkinter UI |
@@ -217,6 +218,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 7. ✅ **`jwe.config`** — dataclass capturing every CLI/GUI input. Validation lives here.
 8. ✅ **`jwe.csv_writer`** — context manager that opens the file, writes header, appends rows, flushes per row.
 9. ✅ **`jwe.exporter`** — orchestrate everything. This is where the data flow in §4 lives.
+9.5. ✅ **`jwe.service`** — service layer consumed by both CLI and GUI. Wraps test_connection, search_users, discover_cloud_id, run_export, keyring-based token persistence, and config_from_env. CLI and GUI import from here, not from exporter/user/tenant_info directly. `ExportConfig.build_auth()` was added to config as part of this step so auth-strategy construction lives in exactly one place.
 10. **`jwe.cli`** — argparse, env-var fallback, exit codes per PRD §11.
 11. **`jwe.i18n`** — extract strings as we go; don't try to retrofit later.
 12. **`jwe.gui`** — last, because by this point all the building blocks exist. Don't block the Tk main loop on long-running calls; run the export in a worker thread and post progress events back via a `queue.Queue`.

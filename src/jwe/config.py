@@ -14,7 +14,13 @@ from datetime import date
 from enum import StrEnum
 from pathlib import Path
 
-from jwe.api.auth import AuthHeaderStyle, AuthMode
+from jwe.api.auth import (
+    AuthHeaderStyle,
+    AuthMode,
+    AuthStrategy,
+    ServiceAccountAuth,
+    UserTokenAuth,
+)
 from jwe.api.url_builder import validate_cloud_id, validate_site_url
 
 _PROJECT_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+$")
@@ -118,6 +124,40 @@ class ExportConfig:
             raise ValueError(
                 f"output_dir {str(self.output_dir)!r} does not exist or is not a directory"
             )
+
+    def build_auth(self) -> AuthStrategy:
+        """Build an :class:`~jwe.api.auth.AuthStrategy` from this config.
+
+        Returns:
+            A concrete :class:`~jwe.api.auth.AuthStrategy` matching
+            :attr:`auth_mode`.
+
+        Raises:
+            RuntimeError: If a required field is empty. This cannot happen
+                after a successful :meth:`validate` call.
+        """
+        if self.auth_mode is AuthMode.SERVICE_ACCOUNT:
+            if not self.service_account_email or not self.api_token or not self.cloud_id:
+                raise RuntimeError(
+                    "SERVICE_ACCOUNT auth requires service_account_email, api_token, "
+                    "and cloud_id. Call validate() before build_auth()."
+                )
+            return ServiceAccountAuth(
+                email=self.service_account_email,
+                token=self.api_token,
+                cloud_id=self.cloud_id,
+                header_style=self.auth_header,
+            )
+        if not self.email or not self.api_token or not self.site_url:
+            raise RuntimeError(
+                "USER_TOKEN auth requires email, api_token, and site_url. "
+                "Call validate() before build_auth()."
+            )
+        return UserTokenAuth(
+            email=self.email,
+            token=self.api_token,
+            site_url=self.site_url,
+        )
 
     def to_redacted_dict(self) -> dict[str, object]:
         """Return a dict suitable for logging — token redacted."""
