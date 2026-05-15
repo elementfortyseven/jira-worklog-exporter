@@ -34,6 +34,9 @@ ENV/
 *.swo
 *~
 
+# Claude Code local working directory
+.claude/
+
 # Windows
 Thumbs.db
 Desktop.ini
@@ -55,3 +58,6 @@ secrets.json
 
 # Test fixtures with real data (use anonymized in tests/fixtures/)
 tests/fixtures/real_*.json
+
+# Local smoke tests
+e2e_smoke.py
