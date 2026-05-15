@@ -277,3 +277,9 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 - Re-read §3 (dual authentication).
 - Check the PRD's acceptance criteria (§15) — they're the spec for "done."
 - If a library wants to hide auth/URL details, **don't use it**. The whole point of this project's architecture is keeping that layer explicit.
+
+---
+
+## 13. Backlog / known UX issues
+
+- **Output dir auto-create:** Currently `ExportConfig.validate()` raises if `output_dir` does not exist. For better UX, the default `./exports` should be auto-created on first run, while explicitly user-provided paths still raise (protects against typos). Pick this up during the GUI iteration since the file-picker will need consistent behavior.
