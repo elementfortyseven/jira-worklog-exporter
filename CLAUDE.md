@@ -29,7 +29,7 @@ Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date r
 | `jwe.csv_writer` | ✅ implemented | WorklogCsvWriter context manager; 97% coverage, 15 tests |
 | `jwe.exporter` | ✅ implemented | run_export generator; 90% coverage, 8 tests |
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
-| `jwe.i18n` | 🟡 stub | de/en string tables |
+| `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
 | `jwe.cli` | ✅ implemented | argparse with export and discover-cloud-id subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 83% coverage, 19 tests |
 | `jwe.gui` | 🟡 stub | Tkinter UI |
 
@@ -220,7 +220,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 9. ✅ **`jwe.exporter`** — orchestrate everything. This is where the data flow in §4 lives.
 9.5. ✅ **`jwe.service`** — service layer consumed by both CLI and GUI. Wraps test_connection, search_users, discover_cloud_id, run_export, keyring-based token persistence, and config_from_env. CLI and GUI import from here, not from exporter/user/tenant_info directly. `ExportConfig.build_auth()` was added to config as part of this step so auth-strategy construction lives in exactly one place.
 10. ✅ **`jwe.cli`** — argparse, env-var fallback, exit codes per PRD §11.
-11. **`jwe.i18n`** — extract strings as we go; don't try to retrofit later.
+11. ✅ **`jwe.i18n`** — t(key, lang, **kwargs) with de/en tables, KeyError on unknown key, en fallback for unknown lang.
 12. **`jwe.gui`** — last, because by this point all the building blocks exist. Don't block the Tk main loop on long-running calls; run the export in a worker thread and post progress events back via a `queue.Queue`.
 
 ---
