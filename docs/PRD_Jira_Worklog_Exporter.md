@@ -19,7 +19,7 @@ Der **Jira Cloud Worklog Exporter** ist ein kleines, eigenständiges Werkzeug zu
 
 Das Tool authentifiziert sich entweder über ein **Atlassian-Service-Account-Token (bevorzugt)** oder über ein klassisches personenbezogenes API-Token (Fallback). Im Service-Account-Modus läuft der Verkehr über das Atlassian-Platform-Gateway `https://api.atlassian.com/ex/jira/{cloudId}`, im klassischen Modus direkt gegen die Site-URL.
 
-Das Tool wird als Python-Skript mit optionalem Tkinter-GUI ausgeliefert und kann via PyInstaller plus GitHub-Actions-Workflow als signierte Windows-Executable gebaut werden — analog zum bestehenden „Jira Project Leads Exporter".
+Das Tool wird als Python-Skript mit optionalem PySide6-GUI ausgeliefert und kann via PyInstaller plus GitHub-Actions-Workflow als signierte Windows-Executable gebaut werden — analog zum bestehenden „Jira Project Leads Exporter".
 
 ---
 
@@ -42,7 +42,7 @@ In Jira Cloud sind Worklogs zwar pro Vorgang sichtbar, aber für eine pro-Benutz
 3. Optionale Einschränkung auf bestimmte Projekte (Projekt-Schlüssel).
 4. CSV-Ausgabe mit fester Spaltenstruktur (siehe §8).
 5. UTF-8-Kodierung mit BOM, damit Excel die CSV korrekt öffnet.
-6. Bereitstellung als CLI-Skript **und** als optionales Tkinter-GUI.
+6. Bereitstellung als CLI-Skript **und** als optionales PySide6-GUI (cross-platform).
 7. **Zwei Authentifizierungsmodi:**
    - **(A) Service Account** mit scopes-basiertem API-Token, Auth über `https://api.atlassian.com/ex/jira/{cloudId}` (bevorzugt — überlebt Mitarbeiter-Wechsel, klar abgegrenzte Scopes).
    - **(B) Personenbezogenes API-Token** (legacy/scoped), Auth direkt gegen `https://<site>.atlassian.net` (Fallback für Setups ohne Org-Admin-Zugriff oder mit < 5 verfügbaren Service Accounts).
@@ -204,7 +204,7 @@ Diese Voraussetzungen liegen außerhalb des Tools und müssen vom Org-Admin erf�
 | Portabilität | Python 3.11+; Linux/Mac/Windows; PyInstaller-Build für Windows 11 x64 |
 | Internationalisierung | UI-Texte auf Englisch und Deutsch, umschaltbar (i18n-fähige String-Tabelle) |
 | Lizenz | MIT |
-| Abhängigkeiten | Möglichst Standardbibliothek; extern nur `requests`, `tqdm`, optional `keyring`, `cryptography` |
+| Abhängigkeiten | extern `requests`, `tqdm`, `PySide6` (GUI-Extra); optional `keyring` |
 | Wartbarkeit | Trennung von API-Layer, Domain-Layer (Worklog-Modell) und UI-Layer (CLI/GUI) |
 
 ---
@@ -238,9 +238,9 @@ Diese Voraussetzungen liegen außerhalb des Tools und müssen vom Org-Admin erf�
 
 - **Sprache:** Python 3.11+
 - **HTTP-Client:** `requests` mit `requests.adapters.HTTPAdapter` und `urllib3.util.retry.Retry`. **Bewusste Entscheidung gegen Fertigbibliotheken** wie `atlassian-python-api` oder `jira`: Die meisten dieser Bibliotheken hardcoden die Site-URL `https://<tenant>.atlassian.net` und sind daher mit Service-Account-Tokens nicht kompatibel — diese erfordern zwingend das Platform-Gateway `https://api.atlassian.com/ex/jira/{cloudId}`. Eigener, schlanker Client gibt uns die nötige Flexibilität für beide Auth-Modi.
-- **GUI:** `tkinter` (Standardbibliothek) mit `ttk` für moderne Widgets — Anwendung trägt sich problemlos durch PyInstaller, kein extra DLL-Footprint wie bei PyQt.
+- **GUI:** `PySide6` (Qt6-Bindings) — **Toolkit-Entscheidung:** Initial war `tkinter` (Standardbibliothek, kein extra Footprint) geplant. Mit Blick auf Cross-Platform-Anforderungen (Windows-first, Mac/Linux nicht ausgeschlossen), die geplante Nutzer-Skalierung (5–15 → ~3 000) und die Anforderung, optisch mit der Atlassian-Cloud-UI mitzuhalten, wurde auf PySide6 gewechselt. PyInstaller unterstützt PySide6; der Build-Footprint ist größer als bei Tkinter.
 - **CSV:** `csv` (Standardbibliothek)
-- **Progress:** `tqdm` (CLI), `ttk.Progressbar` (GUI)
+- **Progress:** `tqdm` (CLI), `QProgressBar` via PySide6 (GUI)
 - **Logging:** `logging` (Standardbibliothek)
 - **Optional:** `keyring` für sichere Token-Speicherung im Windows Credential Manager
 - **Build:** `pyinstaller --onefile --windowed` für GUI-Variante; `--console` für CLI-Variante. GitHub Actions Workflow auf `windows-latest`.
@@ -310,7 +310,7 @@ jira_worklog_exporter/
 
 ---
 
-## 10. UI-Design (Tkinter-GUI)
+## 10. UI-Design (PySide6-GUI)
 
 **Layout (vertikal, Single-Window, ~640×560 px):**
 

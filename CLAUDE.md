@@ -7,7 +7,7 @@ This file is the primary context for Claude Code working on this repository.
 
 ## TL;DR
 
-Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date range to CSV. Two binaries: a CLI (`jwe-cli`) and a Tkinter GUI (`jwe-gui`). Built for Windows via PyInstaller in GitHub Actions. The unusual part is the **dual authentication architecture** — see §3 below.
+Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date range to CSV. Two binaries: a CLI (`jwe-cli`) and a PySide6 GUI (`jwe-gui`). Built for Windows via PyInstaller in GitHub Actions. The unusual part is the **dual authentication architecture** — see §3 below.
 
 ---
 
@@ -31,7 +31,7 @@ Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date r
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
 | `jwe.cli` | ✅ implemented | argparse with export and discover-cloud-id subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 83% coverage, 19 tests |
-| `jwe.gui` | 🟡 stub | Tkinter UI |
+| `jwe.gui` | 🟡 stub | PySide6 UI (cross-platform) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
 
@@ -221,7 +221,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 9.5. ✅ **`jwe.service`** — service layer consumed by both CLI and GUI. Wraps test_connection, search_users, discover_cloud_id, run_export, keyring-based token persistence, and config_from_env. CLI and GUI import from here, not from exporter/user/tenant_info directly. `ExportConfig.build_auth()` was added to config as part of this step so auth-strategy construction lives in exactly one place.
 10. ✅ **`jwe.cli`** — argparse, env-var fallback, exit codes per PRD §11.
 11. ✅ **`jwe.i18n`** — t(key, lang, **kwargs) with de/en tables, KeyError on unknown key, en fallback for unknown lang.
-12. **`jwe.gui`** — last, because by this point all the building blocks exist. Don't block the Tk main loop on long-running calls; run the export in a worker thread and post progress events back via a `queue.Queue`.
+12. **`jwe.gui`** — last, because by this point all the building blocks exist. Use PySide6 (Qt6). Run the export in a `QThread` and post progress back to the main thread via Qt signals — never call UI widgets from a worker thread.
 
 ---
 
@@ -259,7 +259,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 4. **ADF with embedded mentions and inline cards** → naive text extraction loses the user reference. The fixture covers this.
 5. **Pagination off-by-one** with `startAt`/`maxResults` (worklogs) vs. `nextPageToken` (search) — they're different APIs with different mechanisms.
 6. **DE Excel and CSV encoding** — UTF-8 BOM is non-negotiable; without it, umlauts break in Excel DE.
-7. **Tk main loop and threads** — never call Tk widgets from a worker thread. Use `queue.Queue` + `after(100, poll)` pattern.
+7. **PySide6 main thread and workers** — never call Qt widgets from a worker thread. Use `QThread` + signals/slots; emit progress via custom signals only.
 
 ---
 
@@ -283,3 +283,4 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 ## 13. Backlog / known UX issues
 
 - **Output dir auto-create:** Currently `ExportConfig.validate()` raises if `output_dir` does not exist. For better UX, the default `./exports` should be auto-created on first run, while explicitly user-provided paths still raise (protects against typos). Pick this up during the GUI iteration since the file-picker will need consistent behavior.
+- **Cross-platform builds:** Add `build-macos.yml` and `build-linux.yml` GitHub Actions workflows after the first GUI implementation. macOS requires Code Signing and Notarization; Linux is best packaged as AppImage. Initially acceptable without signing for internal distribution — document the bypass procedure for users.

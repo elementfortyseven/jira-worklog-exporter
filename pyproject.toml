@@ -30,6 +30,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gui = ["PySide6>=6.6"]
 keyring = ["keyring>=25.0"]
 dev = [
     "pytest>=8.0",
