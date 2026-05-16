@@ -199,6 +199,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     dcp.add_argument("site_url", metavar="SITE_URL")
 
+    # ------------------------------------------------------------ gui
+    gp = sub.add_parser("gui", help="Launch the graphical user interface.")
+    gp.add_argument(
+        "--lang",
+        choices=["de", "en"],
+        default=None,
+        metavar="LANG",
+        help="Initial interface language: de or en (overrides saved setting).",
+    )
+
     return parser
 
 
@@ -381,6 +391,12 @@ def _print_summary(
         )
 
 
+def _cmd_gui(args: argparse.Namespace) -> int:
+    from jwe.gui_main import main as gui_main
+
+    return gui_main(lang=getattr(args, "lang", None))
+
+
 def _cmd_discover_cloud_id(args: argparse.Namespace) -> int:
     try:
         info = service.discover_cloud_id(str(args.site_url))
@@ -408,6 +424,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_export(args)
     if args.command == "discover-cloud-id":
         return _cmd_discover_cloud_id(args)
+    if args.command == "gui":
+        return _cmd_gui(args)
 
     parser.print_help(sys.stderr)
     return _EXIT_VALIDATION_ERROR

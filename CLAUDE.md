@@ -30,8 +30,9 @@ Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date r
 | `jwe.exporter` | ✅ implemented | run_export generator; 90% coverage, 8 tests |
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
-| `jwe.cli` | ✅ implemented | argparse with export and discover-cloud-id subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 83% coverage, 19 tests |
-| `jwe.gui` | 🟡 stub | PySide6 UI (cross-platform) |
+| `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
+| `jwe.gui` | 🟡 etappe 1 (skeleton) | Launchable MainWindow, Fusion style, 5 section stubs (QGroupBox), language toggle, QSettings geometry/lang persistence; 100% coverage, 9 tests |
+| `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
 
@@ -304,7 +305,7 @@ This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than 
 
 ---
 
-### Etappe 1 — Skeleton & Infrastruktur
+### ✅ Etappe 1 — Skeleton & Infrastruktur
 
 **Goal:** Launchable window with the full structural frame; no real functionality yet.
 
