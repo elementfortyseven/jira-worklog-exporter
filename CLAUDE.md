@@ -82,6 +82,7 @@ Avoid Bash-specific syntax in any shell commands you generate:
   use `Get-Content` / `Select-String` / PowerShell pipelines, or invoke
   the relevant tool directly.
 - **Commit messages**: do not append `Co-Authored-By: Claude` trailers.
+- **Commit messages — ASCII only**: no Unicode characters in `-m` strings. PowerShell quoting breaks on many non-ASCII characters, and commits should be readable in every console. Concretely: write `section 14` not `§14`, `->` not `→`, `-` not `–`, plain colons instead of parentheses around scope keywords, no `**bold**` markup.
 
 Git Bash is available on the user's machine for any tool that genuinely
 requires bash, but normal development workflows go through PowerShell.
