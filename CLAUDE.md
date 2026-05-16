@@ -221,7 +221,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 9.5. ✅ **`jwe.service`** — service layer consumed by both CLI and GUI. Wraps test_connection, search_users, discover_cloud_id, run_export, keyring-based token persistence, and config_from_env. CLI and GUI import from here, not from exporter/user/tenant_info directly. `ExportConfig.build_auth()` was added to config as part of this step so auth-strategy construction lives in exactly one place.
 10. ✅ **`jwe.cli`** — argparse, env-var fallback, exit codes per PRD §11.
 11. ✅ **`jwe.i18n`** — t(key, lang, **kwargs) with de/en tables, KeyError on unknown key, en fallback for unknown lang.
-12. **`jwe.gui`** — last, because by this point all the building blocks exist. Use PySide6 (Qt6). Run the export in a `QThread` and post progress back to the main thread via Qt signals — never call UI widgets from a worker thread.
+12. **`jwe.gui`** — last, because by this point all the building blocks exist. Use PySide6 (Qt6). Run the export in a `QThread` and post progress back to the main thread via Qt signals — never call UI widgets from a worker thread. See §14 for the detailed implementation roadmap.
 
 ---
 
@@ -284,3 +284,164 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 
 - **Output dir auto-create:** Currently `ExportConfig.validate()` raises if `output_dir` does not exist. For better UX, the default `./exports` should be auto-created on first run, while explicitly user-provided paths still raise (protects against typos). Pick this up during the GUI iteration since the file-picker will need consistent behavior.
 - **Cross-platform builds:** Add `build-macos.yml` and `build-linux.yml` GitHub Actions workflows after the first GUI implementation. macOS requires Code Signing and Notarization; Linux is best packaged as AppImage. Initially acceptable without signing for internal distribution — document the bypass procedure for users.
+
+---
+
+## 14. GUI implementation roadmap
+
+Each etappe is one commit and is implemented in a fresh Claude Code session. The mandatory review pattern applies to every etappe — see end of this section.
+
+### i18n-Marker convention (Etappen 2–5b)
+
+Every hardcoded UI string (label text, button caption, placeholder, error message) that is not yet wired to `t()` must be annotated inline:
+
+```python
+self.label.setText("Connection test")  # i18n: auth.btn.test_connection
+```
+
+This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than a hunt through the codebase.
+
+---
+
+### Etappe 1 — Skeleton & Infrastruktur
+
+**Goal:** Launchable window with the full structural frame; no real functionality yet.
+
+**Implements:**
+- `MainWindow(QMainWindow)` — Fusion style, orchestrator only
+- Hybrid layout: `StatusWidget` anchored at the bottom, `QScrollArea` above containing `AuthWidget`, `UserSearchWidget`, `FilterWidget`, `OutputWidget` as empty `QGroupBox` stubs
+- Language toggle button (🇩🇪 / 🇬🇧), `self._lang`, `language_changed` signal, `retranslate_ui(lang)` stubs on every widget
+- `QSettings` save/restore for window geometry only
+
+**Tests (pytest-qt):**
+- `MainWindow` instantiates without error
+- Language toggle flips `self._lang` and calls `retranslate_ui` on all section widgets
+- QSettings geometry round-trip (save → restore)
+
+---
+
+### Etappe 2 — Auth Panel & Connection Test
+
+**Goal:** Fully functional auth section; real Jira connection testable.
+
+**Implements:**
+- `ServiceAccountPanel` and `UserTokenPanel` as separate `QWidget` subclasses inside a `QStackedWidget`
+- Radio buttons for mode switch (outside the stack, always visible)
+- All auth fields: Cloud ID, service-account email, API token (masked), auth-header dropdown, site URL, email
+- Cloud-ID-Discover dialog (site URL → async fetch via worker → fill Cloud ID field)
+- Worker-based connection test (first use of `QThread` / `moveToThread` pattern)
+- Keyring integration: auto-load token on startup, save-checkbox, graceful degradation (info label + disabled checkbox on `RuntimeError`)
+- `QSettings` save/restore for all auth fields (not token)
+- All strings marked `# i18n: <key>`
+
+**Tests (pytest-qt):**
+- Radio switch changes `QStackedWidget` index
+- `ServiceAccountPanel` exposes exactly the SA fields; `UserTokenPanel` the user-token fields
+- Connect button starts worker and emits signal (service mocked)
+- `RuntimeError` from keyring → checkbox is disabled
+- Token auto-filled on init when keyring returns a value
+
+---
+
+### Etappe 3 — User Search & Shuttle
+
+**Goal:** User lookup and multi-selection fully operational.
+
+**Implements:**
+- `QLineEdit` + `QTimer` single-shot debounce (400 ms) triggering `search_users()` worker
+- Left `QListWidget`: search results (displayName + email)
+- Right `QListWidget`: selected users
+- `→` / `←` arrow buttons; double-click shortcut on both lists
+- Empty search term cancels pending timer, makes no API call
+- All strings marked `# i18n: <key>`
+
+**Tests (pytest-qt):**
+- Debounce timer fires worker after delay (service mocked)
+- Double-click on left list moves item to right list
+- Arrow button moves selected items between lists
+- Empty search string produces no worker start
+
+---
+
+### Etappe 4 — Filter, Output & Form Validation
+
+**Goal:** Complete input form; export button correctly gated.
+
+**Implements:**
+- `FilterWidget`: `QDateEdit` from/to (default: current month), project keys `QLineEdit` (optional)
+- `OutputWidget`: output directory `QLineEdit` + `QFileDialog` browse button, delimiter dropdown, column-profile dropdown, API-version dropdown
+- Central validation: export button enabled only when ≥1 user selected and all required fields valid
+- `QSettings` save/restore for: `auth_mode`, `cloud_id`, `service_account_email`, `site_url`, `email`, `auth_header`, `column_profile`, `delimiter`, `output_dir`, `api_version`, `lang`; **not** saved: `api_token`, `user_account_ids`, `from_date`, `to_date`
+- All strings marked `# i18n: <key>`
+
+**Tests (pytest-qt):**
+- Export button disabled when no users in right list
+- Export button disabled when date range is invalid
+- Export button enabled when form is complete and valid
+- QSettings round-trip for every persisted field
+
+---
+
+### Etappe 5a — ExportWorker & Progress Display
+
+**Goal:** Export runs end-to-end; progress visible in UI.
+
+**Implements:**
+- `ExportWorker(QObject)` moved to `QThread` via `moveToThread`; consumes `service.run_export()` generator
+- Signals: `progress_updated(int, int)`, `row_written()`, `export_finished(str)`, `error_occurred(str)`
+- `StatusWidget` wired up: progress bar, issue/worklog counters, scrollable read-only log panel (last 50 lines)
+- Export button triggers worker start; status panel becomes active
+- All strings marked `# i18n: <key>`
+
+**Tests (pytest-qt):**
+- Worker emits `progress_updated` from mocked generator
+- Worker emits `export_finished` with correct output path
+- Worker emits `error_occurred` on exception from generator
+- StatusWidget progress bar updates on `progress_updated` signal
+- Log panel receives messages appended by worker
+
+---
+
+### Etappe 5b — Cancel, closeEvent & Result Actions
+
+**Goal:** Safe cancellation, exit protection, post-export affordances.
+
+**Implements:**
+- Cancel button sets `threading.Event`; worker stops cleanly between generator yields
+- Cancel button visible and enabled only during active export
+- `closeEvent` checks for active export; shows `QMessageBox` confirmation before allowing close
+- „CSV öffnen" / „Ordner öffnen" buttons appear after `export_finished`; use `QDesktopServices.openUrl`
+- All strings marked `# i18n: <key>`
+
+**Tests (pytest-qt):**
+- Cancel button sets the `threading.Event`
+- Worker exits loop after event is set
+- `closeEvent` during active export triggers confirmation dialog (`QMessageBox` mocked)
+- „CSV öffnen" button calls `QDesktopServices.openUrl` with correct path
+
+---
+
+### Etappe 6 — i18n vollständig & UX-Politur
+
+**Goal:** Fully internationalised, production-ready GUI.
+
+**Implements:**
+- All `# i18n: <key>` markers resolved: `t(key, lang)` everywhere, new keys added to `jwe/i18n.py` string tables
+- `retranslate_ui` stubs (Etappe 1) filled in on every widget
+- Language persisted via `QSettings`; language toggle works at runtime across all strings
+- Inline field validation: red QSS border on invalid fields, cleared on correction
+- Minimum window size enforced
+
+**Tests (pytest-qt):**
+- Every i18n key used in the UI resolves without `KeyError` for both `de` and `en` (parametrised)
+- Language switch at runtime updates all visible widget texts
+- Invalid field shows error styling; valid input clears it
+
+---
+
+### Review pattern (verbindlich für jede Etappe)
+
+1. **Klassen-Skizze** — Klassennamen, Vererbungen, wichtigste Signals/Slots in Prosa vorab zeigen. Warten auf explizite Freigabe.
+2. **Code schreiben** — `# i18n: <key>` an jedem hardcodierten String (Etappen 2–5b), keine Doppler, Ruff- und mypy-konform.
+3. **Tests grün + Sichtprüfung** — `pytest` läuft durch; das laufende Fenster wird kurz beschrieben (kein Screenshot-Test).
+4. **Commit + Push + §1-Update** — CLAUDE.md §1-Statustabelle im selben Commit aktualisieren.
