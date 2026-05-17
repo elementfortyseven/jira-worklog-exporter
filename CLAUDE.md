@@ -322,7 +322,7 @@ This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than 
 
 ---
 
-### Etappe 2 — Auth Panel & Connection Test
+### ✅ Etappe 2 — Auth Panel & Connection Test
 
 **Goal:** Fully functional auth section; real Jira connection testable.
 
@@ -345,7 +345,7 @@ This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than 
 
 ---
 
-### Etappe 3 — User Search & Shuttle
+### ✅ Etappe 3 — User Search & Shuttle
 
 **Goal:** User lookup and multi-selection fully operational.
 
@@ -449,4 +449,4 @@ This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than 
    - **Gegenteil-Fälle einplanen**: zu jedem „A führt zu B"-Test auch „nicht-A führt nicht zu B" notieren (z.B. „Checkbox aus → save_token NICHT aufgerufen"). Das verdoppelt erfahrungsgemäß die Test-Zahl gegenüber der Erstschätzung.
 2. **Code schreiben** — `# i18n: <key>` an jedem hardcodierten String (Etappen 2–5b), keine Doppler, Ruff- und mypy-konform.
 3. **Tests grün + Sichtprüfung** — `pytest` läuft durch; das laufende Fenster wird kurz beschrieben (kein Screenshot-Test).
-4. **Commit + Push + §1-Update** — CLAUDE.md §1-Statustabelle im selben Commit aktualisieren.
+4. **Commit + Push + §1- und §14-Update** — CLAUDE.md §1-Statustabelle im selben Commit aktualisieren; zugleich den abgeschlossenen Etappen-Header in §14 auf ✅ setzen.
