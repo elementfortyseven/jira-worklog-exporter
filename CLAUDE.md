@@ -11,6 +11,39 @@ Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date r
 
 ---
 
+## 0. Operating instructions — read first
+
+### Shell: PowerShell, not Bash
+
+Windows 11 host; PowerShell is the default shell. Bash syntax is not available. If a Bash construct comes to mind, stop and rewrite.
+
+| Do NOT write | Write instead |
+|---|---|
+| `cmd1 && cmd2` | `cmd1; cmd2` |
+| `cmd1 \|\| fallback` | `if (-not $?) { fallback }` |
+| `cat <<'EOF' ... EOF` | `@"..."@` (PowerShell here-string) |
+| `export VAR=value` | `$env:VAR = "value"` |
+| `cat file \| grep pat` | `Get-Content file \| Select-String pat` |
+
+### Git commit messages
+
+- **ASCII only** — no `§`, `->` not `→`, no `–`, no `**`. PowerShell quoting breaks on non-ASCII; commits must be readable in every console.
+- **Multiple `-m` flags** for multi-line messages; no embedded newlines inside a single `-m` string.
+- **No `Co-Authored-By` trailer** unless explicitly requested.
+
+### GUI Etappen workflow
+
+One Etappe = one commit = one fresh Claude Code session. At Etappe completion update **§1** (status table) and **§14** (Etappe heading → ✅) in the same commit as the code and tests.
+
+### GUI review pattern
+
+1. Class sketch with signal/slot list → wait for explicit approval before writing code
+2. Write code — `# i18n: <key>` on every hardcoded string (Etappen 2–5b)
+3. Tests green + brief visual window description
+4. Single commit: code + tests + §1 update + §14 ✅
+
+---
+
 ## 1. Project state
 
 **Phase:** v0 / skeleton. Architectural foundations are implemented; business logic is stubbed.
@@ -40,7 +73,7 @@ Tests follow the same pattern: implemented for implemented modules, stubbed for 
 
 ## 2. Run / dev workflow
 
-This is a Windows-first project. The user develops on Windows 11 with VS Code. Use forward slashes in code (Python handles them); use `\` only when shelling out to Windows-specific tools.
+Use forward slashes in Python source code; Python normalises them on Windows. Use `\` only when passing paths to Windows-specific CLI tools. Shell and commit conventions are in §0.
 
 ```powershell
 # One-time setup
@@ -67,26 +100,6 @@ pyinstaller jwe-gui.spec
 ```
 
 `.spec` files for PyInstaller are not yet generated — create them on first build with `pyinstaller --onefile --name jwe-cli src/jwe/__main__.py` and edit afterward.
-
-### Shell environment
-
-This project runs on Windows 11 with PowerShell as the primary shell.
-Avoid Bash-specific syntax in any shell commands you generate:
-
-- **No heredocs** (`cat <<'EOF' ... EOF`) — use PowerShell here-strings
-  (`@"..."@`) or, for `git commit`, multiple `-m` flags instead.
-- **No `&&` or `||` for command chaining** — use `;` for sequential
-  execution or separate invocations.
-- **No POSIX environment-variable syntax** (`export VAR=value`,
-  `$VAR`) — use `$env:VAR = "value"` and reference as `$env:VAR`.
-- **No POSIX pipe-and-redirect tricks** like `cat file | grep pattern` —
-  use `Get-Content` / `Select-String` / PowerShell pipelines, or invoke
-  the relevant tool directly.
-- **Commit messages**: do not append `Co-Authored-By: Claude` trailers.
-- **Commit messages — ASCII only**: no Unicode characters in `-m` strings. PowerShell quoting breaks on many non-ASCII characters, and commits should be readable in every console. Concretely: write `section 14` not `§14`, `->` not `→`, `-` not `–`, plain colons instead of parentheses around scope keywords, no `**bold**` markup.
-
-Git Bash is available on the user's machine for any tool that genuinely
-requires bash, but normal development workflows go through PowerShell.
 
 #### Troubleshooting: git push from Claude Code fails with publickey error
 
@@ -239,7 +252,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 - **Docstrings:** Google style. The first line is one sentence. Keep them brief.
 - **Error messages are user-facing.** Especially for auth failures, give the user a concrete next step (see PRD §13).
 - **No print-debugging committed.** Use `logger.debug` and `--verbose`.
-- **Shell commands target PowerShell, not bash.** See §2.
+- **Shell commands target PowerShell, not bash.** See §0.
 
 ---
 
