@@ -250,33 +250,56 @@ Diese Voraussetzungen liegen außerhalb des Tools und müssen vom Org-Admin erf�
 ```
 jira_worklog_exporter/
 ├── src/
-│   ├── jwe/
-│   │   ├── __init__.py
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   ├── client.py         # JiraCloudClient: Auth-Modus-Switch (SA vs User), Retry, Pagination
-│   │   │   ├── auth.py           # AuthStrategy: BasicAuth, BearerAuth, ServiceAccountAuth
-│   │   │   ├── url_builder.py    # Site-URL vs Gateway-URL je nach Auth-Modus
-│   │   │   ├── tenant_info.py    # Cloud-ID-Discovery via /_edge/tenant_info
-│   │   │   ├── search.py         # POST /search/jql Wrapper
-│   │   │   ├── worklog.py        # GET /issue/{key}/worklog Wrapper
-│   │   │   └── user.py           # GET /user/search Wrapper
-│   │   ├── adf.py                # ADF -> Plain Text Konverter
-│   │   ├── exporter.py           # Domain Logic: Filter -> CSV-Stream
-│   │   ├── csv_writer.py         # Streamender CSV-Writer
-│   │   ├── config.py             # CLI-Args, Env-Vars, Defaults
-│   │   ├── i18n.py               # de/en Strings
-│   │   ├── cli.py                # CLI-Entry-Point (argparse)
-│   │   └── gui.py                # Tkinter-GUI
-│   └── __main__.py               # python -m jwe
+│   └── jwe/
+│       ├── __init__.py
+│       ├── __main__.py           # python -m jwe
+│       ├── api/
+│       │   ├── __init__.py
+│       │   ├── client.py         # JiraCloudClient: Auth-Modus-Switch (SA vs User), Retry, Pagination
+│       │   ├── auth.py           # AuthStrategy: BasicAuth, BearerAuth, ServiceAccountAuth
+│       │   ├── url_builder.py    # Site-URL vs Gateway-URL je nach Auth-Modus
+│       │   ├── tenant_info.py    # Cloud-ID-Discovery via /_edge/tenant_info
+│       │   ├── search.py         # POST /search/jql Wrapper
+│       │   ├── worklog.py        # GET /issue/{key}/worklog Wrapper
+│       │   └── user.py           # GET /user/search Wrapper
+│       ├── adf.py                # ADF -> Plain Text Konverter
+│       ├── exporter.py           # Domain Logic: Filter -> CSV-Stream
+│       ├── csv_writer.py         # Streamender CSV-Writer
+│       ├── config.py             # ExportConfig dataclass, validate(), build_auth()
+│       ├── i18n.py               # de/en Strings
+│       ├── service.py            # Service-Layer (CLI und GUI)
+│       ├── cli.py                # CLI-Entry-Point (argparse)
+│       ├── gui_main.py           # QApplication-Bootstrapper
+│       └── gui/                  # PySide6-GUI-Package
+│           ├── __init__.py
+│           ├── main_window.py    # MainWindow (QMainWindow)
+│           ├── widgets/          # auth, filter, output, status, user_search
+│           └── workers/          # connection_test, cloud_id_discover, user_search
 ├── tests/
-│   ├── test_adf.py
-│   ├── test_exporter.py
-│   ├── test_url_builder.py       # SA vs User Mode URL-Konstruktion
-│   ├── test_auth.py              # AuthStrategy
+│   ├── conftest.py
 │   ├── fixtures/
 │   │   └── adf_samples.json
-│   └── ...
+│   ├── test_adf.py
+│   ├── test_auth.py
+│   ├── test_cli.py
+│   ├── test_client.py
+│   ├── test_config.py
+│   ├── test_csv_writer.py
+│   ├── test_exporter.py
+│   ├── test_i18n.py
+│   ├── test_search.py
+│   ├── test_service.py
+│   ├── test_tenant_info.py
+│   ├── test_url_builder.py
+│   ├── test_user.py
+│   ├── test_worklog.py
+│   └── gui/                      # pytest-qt GUI-Tests
+│       ├── test_auth_widget.py
+│       ├── test_filter_widget.py
+│       ├── test_main_window.py
+│       ├── test_output_widget.py
+│       ├── test_status_widget.py
+│       └── test_user_search_widget.py
 ├── .github/workflows/
 │   └── build-windows.yml
 ├── pyproject.toml
