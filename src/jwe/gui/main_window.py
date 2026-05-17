@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import threading
+from datetime import date
+from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QByteArray, QSettings, Qt, Signal
+from PySide6.QtCore import QByteArray, QSettings, Qt, QThread, Signal
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -16,11 +19,13 @@ from PySide6.QtWidgets import (
 )
 
 import jwe.service as _default_svc
+from jwe.config import ColumnProfile, ExportConfig
 from jwe.gui.widgets.auth import AuthWidget
 from jwe.gui.widgets.filter import FilterWidget
 from jwe.gui.widgets.output import OutputWidget
 from jwe.gui.widgets.status import StatusWidget
 from jwe.gui.widgets.user_search import UserSearchWidget
+from jwe.gui.workers.export_worker import ExportWorker
 
 _SETTINGS_ORG = "jira-worklog-exporter"
 _SETTINGS_APP = "jwe-gui"
@@ -43,9 +48,12 @@ class MainWindow(QMainWindow):
             _settings or QSettings(_SETTINGS_ORG, _SETTINGS_APP)
         )
         self._lang: str = "de"
-        _svc: Any = service if service is not None else _default_svc
+        self._svc: Any = service if service is not None else _default_svc
+        self._export_thread: QThread | None = None
+        self._export_worker: ExportWorker | None = None
+        self._cancel_event: threading.Event | None = None
 
-        self.auth_widget = AuthWidget(service=_svc)
+        self.auth_widget = AuthWidget(service=self._svc)
         self.user_search_widget = UserSearchWidget()
         self.filter_widget = FilterWidget()
         self.output_widget = OutputWidget()
@@ -59,6 +67,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._restore_settings(initial_lang)
         self._update_export_btn()
+        self.status_widget.export_btn.clicked.connect(self._on_export_clicked)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -126,12 +135,78 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.auth_widget.stop_running_threads()
+        if self._export_thread is not None and self._export_thread.isRunning():
+            if self._cancel_event is not None:
+                self._cancel_event.set()
+            self._export_thread.quit()
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("lang", self._lang)
         self.auth_widget.save_settings(self._settings)
         self.filter_widget.save_settings(self._settings)
         self.output_widget.save_settings(self._settings)
         super().closeEvent(event)
+
+    # ------------------------------------------------------------------
+    # Export lifecycle
+    # ------------------------------------------------------------------
+
+    def _on_export_clicked(self) -> None:
+        self.status_widget.stop_progress_display()  # reset any previous run
+        config = self._build_config()
+        cancel_event = threading.Event()
+        self._cancel_event = cancel_event
+        worker = ExportWorker(config, self._svc.run_export, cancel_event)
+        thread = QThread()
+        worker.moveToThread(thread)
+        worker.progress_updated.connect(self.status_widget.on_progress_updated)
+        worker.log_message.connect(self.status_widget.append_log_line)
+        worker.finished.connect(self._on_export_finished)
+        worker.failed.connect(self._on_export_failed)
+        worker.finished.connect(lambda _: thread.quit())
+        worker.failed.connect(lambda _: thread.quit())
+        thread.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(self._clear_export_refs)
+        thread.started.connect(worker.run)
+        self._export_thread = thread
+        self._export_worker = worker
+        self.status_widget.export_btn.setEnabled(False)
+        self.status_widget.start_progress_display()
+        thread.start()
+
+    def _build_config(self) -> ExportConfig:
+        config = self.auth_widget.get_export_config_partial()
+        config.user_account_ids = self.user_search_widget.get_selected_account_ids()
+        from_qdate = self.filter_widget.from_date.date()
+        to_qdate = self.filter_widget.to_date.date()
+        config.from_date = date(from_qdate.year(), from_qdate.month(), from_qdate.day())
+        config.to_date = date(to_qdate.year(), to_qdate.month(), to_qdate.day())
+        config.project_keys = self.filter_widget.get_project_keys()
+        config.output_dir = Path(self.output_widget.output_dir_field.text().strip())
+        config.delimiter = self.output_widget.delimiter_combo.currentData()
+        config.column_profile = ColumnProfile(self.output_widget.column_profile_combo.currentData())
+        config.api_version = int(self.output_widget.api_version_combo.currentData())
+        return config
+
+    def _on_export_finished(self, output_path: str) -> None:
+        self.status_widget.on_progress_done()
+        msg = (
+            f"Export complete. Output: {output_path}"  # i18n: status.log.export_complete
+            if output_path
+            else "Dry run complete."                   # i18n: status.log.dry_run_complete
+        )
+        self.status_widget.append_log_line(msg)
+        self._update_export_btn()
+
+    def _on_export_failed(self, message: str) -> None:
+        self.status_widget.on_progress_done()
+        self.status_widget.append_log_line(f"Error: {message}")  # i18n: status.log.error
+        self._update_export_btn()
+
+    def _clear_export_refs(self) -> None:
+        self._export_thread = None
+        self._export_worker = None
+        self._cancel_event = None
 
     # ------------------------------------------------------------------
     # Validation

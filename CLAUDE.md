@@ -64,7 +64,7 @@ One Etappe = one commit = one fresh Claude Code session. At Etappe completion up
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
 | `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
-| `jwe.gui` | 🟡 etappe 4 (filter/output/validation) | FilterWidget (date range + project keys), OutputWidget (dir + combos + browse + auto-create exports/), StatusWidget (export button + status label), AuthWidget retrofit (is_valid + validation_changed), UserSearchWidget retrofit (is_valid); central _update_export_btn wired across all 4 widgets; QSettings for 5 new fields; 93% coverage, 75 new tests (163 total GUI) |
+| `jwe.gui` | 🟡 etappe 5a (ExportWorker + progress display) | ExportWorker (generator-consuming QObject worker, 4 signals, cancel_event); StatusWidget extended (progress bar indeterminate, counter labels, log panel 50-line cap, start/stop/done lifecycle); MainWindow wired (_on_export_clicked, _build_config collecting all 4 widgets, export thread lifecycle); AuthWidget._build_config renamed to get_export_config_partial (public); 100% coverage on status.py and export_worker.py; 61 new tests (224 total GUI) |
 | `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
@@ -397,7 +397,7 @@ This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than 
 
 ---
 
-### Etappe 5a — ExportWorker & Progress Display
+### ✅ Etappe 5a — ExportWorker & Progress Display
 
 **Goal:** Export runs end-to-end; progress visible in UI.
 

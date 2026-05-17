@@ -231,7 +231,12 @@ class AuthWidget(QGroupBox):
             return self.sa_panel.token_field
         return self.user_panel.token_field
 
-    def _build_config(self) -> ExportConfig:
+    def get_export_config_partial(self) -> ExportConfig:
+        """Build an ExportConfig with only the auth fields filled in.
+
+        MainWindow._build_config() calls this and fills in the remaining fields
+        (user_account_ids, dates, output settings).
+        """
         mode = self._current_mode()
         if mode == AuthMode.SERVICE_ACCOUNT:
             header_val = self.sa_panel.auth_header_combo.currentData()
@@ -312,7 +317,7 @@ class AuthWidget(QGroupBox):
     def _on_test_connection_clicked(self) -> None:
         self.test_btn.setEnabled(False)
         self.status_label.setText("Testing...")  # i18n: auth.status.testing
-        config = self._build_config()
+        config = self.get_export_config_partial()
         worker = ConnectionTestWorker(config, self._svc.test_connection)
         thread = QThread()
         worker.moveToThread(thread)
