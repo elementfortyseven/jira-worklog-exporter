@@ -31,7 +31,7 @@ Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date r
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
 | `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
-| `jwe.gui` | 🟡 etappe 1 (skeleton) | Launchable MainWindow, Fusion style, 5 section stubs (QGroupBox), language toggle, QSettings geometry/lang persistence; 100% coverage, 9 tests |
+| `jwe.gui` | 🟡 etappe 2 (auth panel) | AuthWidget with ServiceAccountPanel/UserTokenPanel in QStackedWidget, ConnectionTestWorker + CloudIdDiscoverWorker (QThread/moveToThread), keyring integration, QSettings persistence; 92% coverage, 29 tests (38 total GUI) |
 | `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.

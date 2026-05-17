@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from PySide6.QtCore import QByteArray, QSettings, Qt, Signal
 from PySide6.QtGui import QCloseEvent
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+import jwe.service as _default_svc
 from jwe.gui.widgets.auth import AuthWidget
 from jwe.gui.widgets.filter import FilterWidget
 from jwe.gui.widgets.output import OutputWidget
@@ -35,14 +36,16 @@ class MainWindow(QMainWindow):
         *,
         initial_lang: str | None = None,
         _settings: QSettings | None = None,
+        service: Any = None,
     ) -> None:
         super().__init__()
         self._settings: QSettings = (
             _settings or QSettings(_SETTINGS_ORG, _SETTINGS_APP)
         )
         self._lang: str = "de"
+        _svc: Any = service if service is not None else _default_svc
 
-        self.auth_widget = AuthWidget()
+        self.auth_widget = AuthWidget(service=_svc)
         self.user_search_widget = UserSearchWidget()
         self.filter_widget = FilterWidget()
         self.output_widget = OutputWidget()
@@ -110,10 +113,13 @@ class MainWindow(QMainWindow):
         geo_raw = self._settings.value("geometry", QByteArray())
         if isinstance(geo_raw, QByteArray) and not geo_raw.isEmpty():
             self.restoreGeometry(geo_raw)
+        self.auth_widget.load_settings(self._settings)
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        self.auth_widget.stop_running_threads()
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("lang", self._lang)
+        self.auth_widget.save_settings(self._settings)
         super().closeEvent(event)
 
     # ------------------------------------------------------------------
