@@ -1,13 +1,17 @@
-"""Tests for MainWindow — Etappe 1 (skeleton)."""
+"""Tests for MainWindow -- Etappen 1 and 4."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import patch
 
-from PySide6.QtCore import QByteArray, QSettings, Qt
+from PySide6.QtCore import QByteArray, QDate, QSettings, Qt
+from PySide6.QtWidgets import QListWidgetItem
 
+from jwe.api.user import User
 from jwe.gui.main_window import MainWindow
+
+_FAKE_USER = User(account_id="acc-1", display_name="Test", email="t@t.com", active=True)
 
 
 class TestMainWindowInstantiates:
@@ -98,3 +102,105 @@ class TestQSettingsGeometryRoundtrip:
         assert isinstance(saved_raw, QByteArray), "geometry must be a QByteArray"
         assert not saved_raw.isEmpty(), "geometry must not be empty after save"
         assert saved_raw == original_geo, "restored geometry must match saved geometry"
+
+
+# ---------------------------------------------------------------------------
+# Export button integration -- Etappe 4
+# ---------------------------------------------------------------------------
+
+
+def _fill_auth(mw: MainWindow) -> None:
+    """Fill SA auth fields so auth_widget.is_valid() returns True."""
+    mw.auth_widget.sa_panel.cloud_id_field.setText("cloud-id-abc")
+    mw.auth_widget.sa_panel.email_field.setText("bot@sa.atlassian.com")
+    mw.auth_widget.sa_panel.token_field.setText("secret")
+
+
+def _add_one_user(mw: MainWindow) -> None:
+    """Add a user to the selected list so user_search_widget.is_valid() returns True."""
+    item = QListWidgetItem("Test User")
+    item.setData(Qt.ItemDataRole.UserRole, "acc-1")
+    mw.user_search_widget.selected_list.addItem(item)
+    mw.user_search_widget.selection_changed.emit()
+
+
+def _make_all_valid(mw: MainWindow, tmp_path: Path) -> None:
+    _fill_auth(mw)
+    _add_one_user(mw)
+    mw.output_widget.output_dir_field.setText(str(tmp_path))
+    # filter defaults are valid (current month, no project keys)
+
+
+class TestExportButtonIntegration:
+    def test_export_btn_disabled_when_auth_invalid(
+        self, main_window: MainWindow, tmp_path: Path
+    ) -> None:
+        _add_one_user(main_window)
+        main_window.output_widget.output_dir_field.setText(str(tmp_path))
+        # auth fields are empty by default
+        assert not main_window.status_widget.export_btn.isEnabled()
+
+    def test_export_btn_disabled_when_no_users_selected(
+        self, main_window: MainWindow, tmp_path: Path
+    ) -> None:
+        _fill_auth(main_window)
+        main_window.output_widget.output_dir_field.setText(str(tmp_path))
+        # no users added
+        assert not main_window.status_widget.export_btn.isEnabled()
+
+    def test_export_btn_disabled_when_filter_invalid(
+        self, main_window: MainWindow, tmp_path: Path
+    ) -> None:
+        _make_all_valid(main_window, tmp_path)
+        # invert date range
+        main_window.filter_widget.from_date.setDate(QDate(2026, 2, 1))
+        main_window.filter_widget.to_date.setDate(QDate(2026, 1, 1))
+        assert not main_window.status_widget.export_btn.isEnabled()
+
+    def test_export_btn_disabled_when_output_invalid(
+        self, main_window: MainWindow, tmp_path: Path
+    ) -> None:
+        _make_all_valid(main_window, tmp_path)
+        main_window.output_widget.output_dir_field.setText("")
+        assert not main_window.status_widget.export_btn.isEnabled()
+
+    def test_export_btn_enabled_when_all_valid(
+        self, main_window: MainWindow, tmp_path: Path
+    ) -> None:
+        _make_all_valid(main_window, tmp_path)
+        assert main_window.status_widget.export_btn.isEnabled()
+
+
+class TestQSettingsNewFields:
+    def test_saves_and_restores_filter_project_keys(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        settings_file = str(tmp_path / "s.ini")
+        s1 = QSettings(settings_file, QSettings.Format.IniFormat)
+        w1 = MainWindow(_settings=s1)
+        qtbot.addWidget(w1)
+        w1.filter_widget.project_keys_field.setText("PROJ")
+        w1.close()
+        s1.sync()
+
+        s2 = QSettings(settings_file, QSettings.Format.IniFormat)
+        w2 = MainWindow(_settings=s2)
+        qtbot.addWidget(w2)
+        assert w2.filter_widget.project_keys_field.text() == "PROJ"
+
+    def test_saves_and_restores_output_dir(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        settings_file = str(tmp_path / "s.ini")
+        target_dir = str(tmp_path)
+        s1 = QSettings(settings_file, QSettings.Format.IniFormat)
+        w1 = MainWindow(_settings=s1)
+        qtbot.addWidget(w1)
+        w1.output_widget.output_dir_field.setText(target_dir)
+        w1.close()
+        s1.sync()
+
+        s2 = QSettings(settings_file, QSettings.Format.IniFormat)
+        w2 = MainWindow(_settings=s2)
+        qtbot.addWidget(w2)
+        assert w2.output_widget.output_dir_field.text() == target_dir

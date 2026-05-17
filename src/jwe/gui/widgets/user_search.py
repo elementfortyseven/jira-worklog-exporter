@@ -256,6 +256,10 @@ class UserSearchWidget(QGroupBox):
     # Public API
     # ------------------------------------------------------------------
 
+    def is_valid(self) -> bool:
+        """Return True when at least one user is in the selected list."""
+        return self.selected_list.count() > 0
+
     def get_selected_account_ids(self) -> list[str]:
         """Return account IDs of all users in the selected list."""
         return [

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -129,6 +130,8 @@ class UserTokenPanel(QWidget):
 class AuthWidget(QGroupBox):
     """Collects auth-mode, credentials, and triggers connection test."""
 
+    validation_changed = Signal()
+
     def __init__(
         self,
         parent: QWidget | None = None,
@@ -202,6 +205,15 @@ class AuthWidget(QGroupBox):
         self.test_btn.clicked.connect(self._on_test_connection_clicked)
         self.save_token_cb.toggled.connect(self._on_save_token_toggled)
 
+        # Validation wiring -- emit validation_changed whenever a required field changes.
+        self.sa_panel.cloud_id_field.textChanged.connect(lambda _: self.validation_changed.emit())
+        self.sa_panel.email_field.textChanged.connect(lambda _: self.validation_changed.emit())
+        self.sa_panel.token_field.textChanged.connect(lambda _: self.validation_changed.emit())
+        self.user_panel.site_url_field.textChanged.connect(lambda _: self.validation_changed.emit())
+        self.user_panel.email_field.textChanged.connect(lambda _: self.validation_changed.emit())
+        self.user_panel.token_field.textChanged.connect(lambda _: self.validation_changed.emit())
+        self._mode_group.idClicked.connect(lambda _: self.validation_changed.emit())
+
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
@@ -235,6 +247,24 @@ class AuthWidget(QGroupBox):
             site_url=self.user_panel.site_url_field.text().strip(),
             email=self.user_panel.email_field.text().strip(),
             api_token=self.user_panel.token_field.text(),
+        )
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def is_valid(self) -> bool:
+        """Return True when all required credentials fields for the current mode are non-empty."""
+        if self._current_mode() == AuthMode.SERVICE_ACCOUNT:
+            return bool(
+                self.sa_panel.cloud_id_field.text().strip()
+                and self.sa_panel.email_field.text().strip()
+                and self.sa_panel.token_field.text()
+            )
+        return bool(
+            self.user_panel.site_url_field.text().strip()
+            and self.user_panel.email_field.text().strip()
+            and self.user_panel.token_field.text()
         )
 
     # ------------------------------------------------------------------
@@ -308,10 +338,8 @@ class AuthWidget(QGroupBox):
             identifier = self._current_identifier()
             token = self._current_token_field().text()
             if identifier and token:
-                try:
+                with contextlib.suppress(RuntimeError):
                     self._svc.save_token(self._current_mode(), identifier, token)
-                except RuntimeError:
-                    pass
 
     def _on_conn_failed(self, message: str) -> None:
         self.status_label.setText(message)
@@ -360,10 +388,8 @@ class AuthWidget(QGroupBox):
         if not checked:
             identifier = self._current_identifier()
             if identifier:
-                try:
+                with contextlib.suppress(RuntimeError):
                     self._svc.delete_token(self._current_mode(), identifier)
-                except RuntimeError:
-                    pass
 
     # ------------------------------------------------------------------
     # Thread lifecycle (called from MainWindow.closeEvent)

@@ -368,3 +368,102 @@ class TestQSettingsRoundTrip:
         assert w2.sa_panel.auth_header_combo.currentIndex() == 1
         assert w2.user_panel.site_url_field.text() == "https://site.atlassian.net"
         assert w2.user_panel.email_field.text() == "me@example.com"
+
+
+# ---------------------------------------------------------------------------
+# is_valid -- Etappe 4 retrofit
+# ---------------------------------------------------------------------------
+
+
+class TestIsValidServiceAccount:
+    def test_valid_sa_when_all_fields_filled(
+        self, auth_widget: AuthWidget
+    ) -> None:
+        _fill_sa_fields(auth_widget)
+        assert auth_widget.is_valid() is True
+
+    def test_invalid_sa_when_cloud_id_empty(self, auth_widget: AuthWidget) -> None:
+        _fill_sa_fields(auth_widget)
+        auth_widget.sa_panel.cloud_id_field.setText("")
+        assert auth_widget.is_valid() is False
+
+    def test_invalid_sa_when_email_empty(self, auth_widget: AuthWidget) -> None:
+        _fill_sa_fields(auth_widget)
+        auth_widget.sa_panel.email_field.setText("")
+        assert auth_widget.is_valid() is False
+
+    def test_invalid_sa_when_token_empty(self, auth_widget: AuthWidget) -> None:
+        _fill_sa_fields(auth_widget)
+        auth_widget.sa_panel.token_field.setText("")
+        assert auth_widget.is_valid() is False
+
+
+class TestIsValidUserToken:
+    def _fill_user_fields(self, w: AuthWidget) -> None:
+        w.user_radio.setChecked(True)
+        w.stack.setCurrentIndex(1)
+        w.user_panel.site_url_field.setText("https://company.atlassian.net")
+        w.user_panel.email_field.setText("me@example.com")
+        w.user_panel.token_field.setText("my-token")
+
+    def test_valid_user_when_all_fields_filled(
+        self, auth_widget: AuthWidget
+    ) -> None:
+        self._fill_user_fields(auth_widget)
+        assert auth_widget.is_valid() is True
+
+    def test_invalid_user_when_site_url_empty(
+        self, auth_widget: AuthWidget
+    ) -> None:
+        self._fill_user_fields(auth_widget)
+        auth_widget.user_panel.site_url_field.setText("")
+        assert auth_widget.is_valid() is False
+
+    def test_invalid_user_when_email_empty(
+        self, auth_widget: AuthWidget
+    ) -> None:
+        self._fill_user_fields(auth_widget)
+        auth_widget.user_panel.email_field.setText("")
+        assert auth_widget.is_valid() is False
+
+    def test_invalid_user_when_token_empty(
+        self, auth_widget: AuthWidget
+    ) -> None:
+        self._fill_user_fields(auth_widget)
+        auth_widget.user_panel.token_field.setText("")
+        assert auth_widget.is_valid() is False
+
+
+# ---------------------------------------------------------------------------
+# validation_changed -- Etappe 4 retrofit
+# ---------------------------------------------------------------------------
+
+
+class TestValidationChangedSignal:
+    def test_emitted_on_sa_cloud_id_change(
+        self, qtbot, auth_widget: AuthWidget
+    ) -> None:
+        with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
+            auth_widget.sa_panel.cloud_id_field.setText("new-id")
+
+    def test_emitted_on_sa_email_change(
+        self, qtbot, auth_widget: AuthWidget
+    ) -> None:
+        with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
+            auth_widget.sa_panel.email_field.setText("bot@sa.atlassian.com")
+
+    def test_emitted_on_sa_token_change(
+        self, qtbot, auth_widget: AuthWidget
+    ) -> None:
+        with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
+            auth_widget.sa_panel.token_field.setText("secret")
+
+    def test_emitted_on_user_site_url_change(
+        self, qtbot, auth_widget: AuthWidget
+    ) -> None:
+        with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
+            auth_widget.user_panel.site_url_field.setText("https://co.atlassian.net")
+
+    def test_emitted_on_mode_switch(self, qtbot, auth_widget: AuthWidget) -> None:
+        with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
+            qtbot.mouseClick(auth_widget.user_radio, Qt.MouseButton.LeftButton)

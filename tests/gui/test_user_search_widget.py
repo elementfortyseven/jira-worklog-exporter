@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -486,3 +485,28 @@ class TestGetterAndSignal:
         assert widget.results_list.count() == 0
         with qtbot.assertNotEmitted(widget.selection_changed):
             qtbot.mouseClick(widget.btn_add_all, Qt.MouseButton.LeftButton)
+
+
+# ---------------------------------------------------------------------------
+# is_valid -- Etappe 4 retrofit
+# ---------------------------------------------------------------------------
+
+
+class TestIsValid:
+    def test_valid_when_at_least_one_user_selected(
+        self, widget: UserSearchWidget
+    ) -> None:
+        _add_to_selected(widget, _ALICE)
+        assert widget.is_valid() is True
+
+    def test_invalid_when_no_users_selected(self, widget: UserSearchWidget) -> None:
+        assert widget.selected_list.count() == 0
+        assert widget.is_valid() is False
+
+    def test_valid_becomes_invalid_after_removing_all(
+        self, qtbot, widget: UserSearchWidget
+    ) -> None:
+        _add_to_selected(widget, _ALICE)
+        assert widget.is_valid() is True
+        qtbot.mouseClick(widget.btn_rem_all, Qt.MouseButton.LeftButton)
+        assert widget.is_valid() is False

@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._restore_settings(initial_lang)
+        self._update_export_btn()
 
     # ------------------------------------------------------------------
     # UI construction
@@ -102,6 +103,12 @@ class MainWindow(QMainWindow):
         # Status panel anchored at the bottom (outside the scroll area)
         root.addWidget(self.status_widget)
 
+        # Validation wiring: any widget going valid/invalid refreshes the export button.
+        self.auth_widget.validation_changed.connect(self._update_export_btn)
+        self.user_search_widget.selection_changed.connect(self._update_export_btn)
+        self.filter_widget.validation_changed.connect(self._update_export_btn)
+        self.output_widget.validation_changed.connect(self._update_export_btn)
+
     # ------------------------------------------------------------------
     # Settings persistence
     # ------------------------------------------------------------------
@@ -114,13 +121,34 @@ class MainWindow(QMainWindow):
         if isinstance(geo_raw, QByteArray) and not geo_raw.isEmpty():
             self.restoreGeometry(geo_raw)
         self.auth_widget.load_settings(self._settings)
+        self.filter_widget.load_settings(self._settings)
+        self.output_widget.load_settings(self._settings)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.auth_widget.stop_running_threads()
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("lang", self._lang)
         self.auth_widget.save_settings(self._settings)
+        self.filter_widget.save_settings(self._settings)
+        self.output_widget.save_settings(self._settings)
         super().closeEvent(event)
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def _update_export_btn(self) -> None:
+        ok = (
+            self.auth_widget.is_valid()
+            and self.user_search_widget.is_valid()
+            and self.filter_widget.is_valid()
+            and self.output_widget.is_valid()
+        )
+        self.status_widget.set_export_enabled(ok)
+        if ok:
+            self.status_widget.set_status_text("Ready to export")      # i18n: status.label.ready
+        else:
+            self.status_widget.set_status_text("Fill in required fields")  # i18n: status.label.not_ready
 
     # ------------------------------------------------------------------
     # Language toggle
