@@ -46,8 +46,12 @@ class UserSearchWidget(QGroupBox):
         self._build_ui()
         self._debounce_timer.timeout.connect(self._on_debounce_fired)
 
-    def set_search_fn(self, fn: Callable[[str], list[User]]) -> None:
-        """Bind the search function (called from MainWindow once auth config is ready)."""
+    def set_search_fn(self, fn: Callable[[str], list[User]] | None) -> None:
+        """Bind or clear the search function.
+
+        Pass a callable to enable search after a successful connection test.
+        Pass None to disable search (e.g. after auth fields change).
+        """
         self._search_fn = fn
 
     # ------------------------------------------------------------------

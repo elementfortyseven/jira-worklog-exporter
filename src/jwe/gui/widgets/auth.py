@@ -130,7 +130,9 @@ class UserTokenPanel(QWidget):
 class AuthWidget(QGroupBox):
     """Collects auth-mode, credentials, and triggers connection test."""
 
-    validation_changed = Signal()
+    validation_changed    = Signal()
+    connection_verified   = Signal(object)  # payload: ExportConfig
+    connection_invalidated = Signal()
 
     def __init__(
         self,
@@ -144,6 +146,8 @@ class AuthWidget(QGroupBox):
         self._conn_worker: ConnectionTestWorker | None = None
         self._disc_thread: QThread | None = None
         self._disc_worker: CloudIdDiscoverWorker | None = None
+        self._verified: bool = False
+        self._last_test_config: ExportConfig | None = None
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -205,14 +209,15 @@ class AuthWidget(QGroupBox):
         self.test_btn.clicked.connect(self._on_test_connection_clicked)
         self.save_token_cb.toggled.connect(self._on_save_token_toggled)
 
-        # Validation wiring -- emit validation_changed whenever a required field changes.
-        self.sa_panel.cloud_id_field.textChanged.connect(lambda _: self.validation_changed.emit())
-        self.sa_panel.email_field.textChanged.connect(lambda _: self.validation_changed.emit())
-        self.sa_panel.token_field.textChanged.connect(lambda _: self.validation_changed.emit())
-        self.user_panel.site_url_field.textChanged.connect(lambda _: self.validation_changed.emit())
-        self.user_panel.email_field.textChanged.connect(lambda _: self.validation_changed.emit())
-        self.user_panel.token_field.textChanged.connect(lambda _: self.validation_changed.emit())
-        self._mode_group.idClicked.connect(lambda _: self.validation_changed.emit())
+        # Validation wiring -- route through _on_field_changed so that
+        # connection_invalidated is emitted when fields change after a successful verify.
+        self.sa_panel.cloud_id_field.textChanged.connect(lambda _: self._on_field_changed())
+        self.sa_panel.email_field.textChanged.connect(lambda _: self._on_field_changed())
+        self.sa_panel.token_field.textChanged.connect(lambda _: self._on_field_changed())
+        self.user_panel.site_url_field.textChanged.connect(lambda _: self._on_field_changed())
+        self.user_panel.email_field.textChanged.connect(lambda _: self._on_field_changed())
+        self.user_panel.token_field.textChanged.connect(lambda _: self._on_field_changed())
+        self._mode_group.idClicked.connect(lambda _: self._on_field_changed())
 
     # ------------------------------------------------------------------
     # Helpers
@@ -249,7 +254,7 @@ class AuthWidget(QGroupBox):
             )
         return ExportConfig(
             auth_mode=mode,
-            site_url=self.user_panel.site_url_field.text().strip(),
+            site_url=self.user_panel.site_url_field.text().strip().rstrip("/"),
             email=self.user_panel.email_field.text().strip(),
             api_token=self.user_panel.token_field.text(),
         )
@@ -298,6 +303,17 @@ class AuthWidget(QGroupBox):
             self.keyring_info_label.setVisible(True)
 
     # ------------------------------------------------------------------
+    # Field-change dispatcher
+    # ------------------------------------------------------------------
+
+    def _on_field_changed(self) -> None:
+        """Emit connection_invalidated (once) when fields change after a successful verify."""
+        if self._verified:
+            self._verified = False
+            self.connection_invalidated.emit()
+        self.validation_changed.emit()
+
+    # ------------------------------------------------------------------
     # Slots
     # ------------------------------------------------------------------
 
@@ -318,6 +334,7 @@ class AuthWidget(QGroupBox):
         self.test_btn.setEnabled(False)
         self.status_label.setText("Testing...")  # i18n: auth.status.testing
         config = self.get_export_config_partial()
+        self._last_test_config = config  # stored so _on_conn_finished can emit it
         worker = ConnectionTestWorker(config, self._svc.test_connection)
         thread = QThread()
         worker.moveToThread(thread)
@@ -343,9 +360,13 @@ class AuthWidget(QGroupBox):
             if identifier and token:
                 with contextlib.suppress(RuntimeError):
                     self._svc.save_token(self._current_mode(), identifier, token)
+        self._verified = True
+        if self._last_test_config is not None:
+            self.connection_verified.emit(self._last_test_config)
 
     def _on_conn_failed(self, message: str) -> None:
         self.status_label.setText(message)
+        self._verified = False
 
     def _on_conn_worker_done(self) -> None:
         self.test_btn.setEnabled(True)

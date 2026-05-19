@@ -14,6 +14,7 @@ from jwe.api.auth import AuthMode
 from jwe.api.client import AuthenticationError, JiraPermissionError
 from jwe.api.tenant_info import TenantInfo
 from jwe.api.user import User
+from jwe.config import ExportConfig
 from jwe.gui.widgets.auth import AuthWidget
 
 # ---------------------------------------------------------------------------
@@ -469,3 +470,97 @@ class TestValidationChangedSignal:
     def test_emitted_on_mode_switch(self, qtbot, auth_widget: AuthWidget) -> None:
         with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
             qtbot.mouseClick(auth_widget.user_radio, Qt.MouseButton.LeftButton)
+
+
+# ---------------------------------------------------------------------------
+# connection_verified / connection_invalidated signals
+# ---------------------------------------------------------------------------
+
+
+def _do_successful_test(qtbot, auth_widget: AuthWidget, mock_svc: MagicMock) -> None:
+    """Helper: fill SA fields, click test, wait for completion."""
+    mock_svc.test_connection.return_value = _FAKE_USER
+    _fill_sa_fields(auth_widget)
+    qtbot.mouseClick(auth_widget.test_btn, Qt.MouseButton.LeftButton)
+    qtbot.waitUntil(lambda: auth_widget.test_btn.isEnabled(), timeout=3000)
+
+
+class TestConnectionVerifiedSignal:
+    # AV-1: emitted after successful test
+    def test_emitted_after_successful_test(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        received: list[object] = []
+        auth_widget.connection_verified.connect(received.append)
+        _do_successful_test(qtbot, auth_widget, mock_svc)
+        assert len(received) == 1
+
+    # AV-2: payload is ExportConfig
+    def test_payload_is_export_config(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        received: list[object] = []
+        auth_widget.connection_verified.connect(received.append)
+        _do_successful_test(qtbot, auth_widget, mock_svc)
+        assert isinstance(received[0], ExportConfig)
+
+    # AV-3: NOT emitted after failed test
+    def test_not_emitted_after_failed_test(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        received: list[object] = []
+        auth_widget.connection_verified.connect(received.append)
+        mock_svc.test_connection.side_effect = AuthenticationError("bad token")
+        _fill_sa_fields(auth_widget)
+        qtbot.mouseClick(auth_widget.test_btn, Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(lambda: auth_widget.test_btn.isEnabled(), timeout=3000)
+        assert received == []
+
+    # AV-4: connection_invalidated emitted when field changes after verify
+    def test_invalidated_emitted_on_field_change_after_verify(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        invalidated: list[None] = []
+        auth_widget.connection_invalidated.connect(lambda: invalidated.append(None))
+        _do_successful_test(qtbot, auth_widget, mock_svc)
+        auth_widget.sa_panel.cloud_id_field.setText("different-cloud-id")
+        assert len(invalidated) == 1
+
+    # AV-5: connection_invalidated NOT emitted when field changes before verify
+    def test_invalidated_not_emitted_before_verify(
+        self, qtbot, auth_widget: AuthWidget
+    ) -> None:
+        invalidated: list[None] = []
+        auth_widget.connection_invalidated.connect(lambda: invalidated.append(None))
+        auth_widget.sa_panel.cloud_id_field.setText("some-cloud-id")
+        assert invalidated == []
+
+    # AV-6: connection_invalidated emitted exactly once for two changes after verify
+    def test_invalidated_emitted_only_once_for_multiple_changes(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        invalidated: list[None] = []
+        auth_widget.connection_invalidated.connect(lambda: invalidated.append(None))
+        _do_successful_test(qtbot, auth_widget, mock_svc)
+        auth_widget.sa_panel.cloud_id_field.setText("change-1")
+        auth_widget.sa_panel.cloud_id_field.setText("change-2")
+        assert len(invalidated) == 1
+
+    # AV-7: mode change after verify emits connection_invalidated
+    def test_invalidated_emitted_on_mode_change_after_verify(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        invalidated: list[None] = []
+        auth_widget.connection_invalidated.connect(lambda: invalidated.append(None))
+        _do_successful_test(qtbot, auth_widget, mock_svc)
+        qtbot.mouseClick(auth_widget.user_radio, Qt.MouseButton.LeftButton)
+        assert len(invalidated) == 1
+
+    # AV-8: _verified is False after connection_invalidated
+    def test_verified_flag_reset_after_invalidation(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        _do_successful_test(qtbot, auth_widget, mock_svc)
+        assert auth_widget._verified is True
+        auth_widget.sa_panel.cloud_id_field.setText("something-different")
+        assert auth_widget._verified is False

@@ -1,14 +1,15 @@
-"""Tests for MainWindow -- Etappen 1 and 4."""
+"""Tests for MainWindow -- Etappen 1, 4, and connection-verify wiring."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from PySide6.QtCore import QByteArray, QDate, QSettings, Qt
 from PySide6.QtWidgets import QListWidgetItem
 
 from jwe.api.user import User
+from jwe.config import ExportConfig
 from jwe.gui.main_window import MainWindow
 
 _FAKE_USER = User(account_id="acc-1", display_name="Test", email="t@t.com", active=True)
@@ -204,3 +205,53 @@ class TestQSettingsNewFields:
         w2 = MainWindow(_settings=s2)
         qtbot.addWidget(w2)
         assert w2.output_widget.output_dir_field.text() == target_dir
+
+
+# ---------------------------------------------------------------------------
+# Connection-verify wiring (bugfix: UserSearchWidget search_fn)
+# ---------------------------------------------------------------------------
+
+_SA_CONFIG = ExportConfig(
+    cloud_id="aaaabbbb-cccc-dddd-eeee-ffffffffffff",
+    service_account_email="bot@serviceaccount.atlassian.com",
+    api_token="token",
+)
+
+
+class TestConnectionVerifiedWiring:
+    # MW-4: before any connection_verified, _search_fn is None
+    def test_search_fn_is_none_before_connection_verified(
+        self, main_window: MainWindow
+    ) -> None:
+        assert main_window.user_search_widget._search_fn is None
+
+    # MW-1: after connection_verified signal, _search_fn is set
+    def test_search_fn_set_after_connection_verified(
+        self, main_window: MainWindow
+    ) -> None:
+        main_window.auth_widget.connection_verified.emit(_SA_CONFIG)
+        assert main_window.user_search_widget._search_fn is not None
+
+    # MW-2: after connection_invalidated, _search_fn is None again
+    def test_search_fn_cleared_after_connection_invalidated(
+        self, main_window: MainWindow
+    ) -> None:
+        main_window.auth_widget.connection_verified.emit(_SA_CONFIG)
+        main_window.auth_widget.connection_invalidated.emit()
+        assert main_window.user_search_widget._search_fn is None
+
+    # MW-3: search_fn closure calls service.search_users with the correct config
+    def test_search_fn_closure_calls_search_users_with_correct_config(
+        self, qtbot, isolated_settings: QSettings
+    ) -> None:
+        mock_svc = MagicMock()
+        mock_svc.load_token.return_value = None
+        mock_svc.search_users.return_value = []
+        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
+        qtbot.addWidget(mw)
+
+        mw.auth_widget.connection_verified.emit(_SA_CONFIG)
+        assert mw.user_search_widget._search_fn is not None
+        mw.user_search_widget._search_fn("alice")
+
+        mock_svc.search_users.assert_called_once_with(_SA_CONFIG, "alice")

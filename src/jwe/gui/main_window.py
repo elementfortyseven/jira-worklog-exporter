@@ -121,6 +121,11 @@ class MainWindow(QMainWindow):
         self.filter_widget.validation_changed.connect(self._update_export_btn)
         self.output_widget.validation_changed.connect(self._update_export_btn)
 
+        # Connection-verify wiring: successful test enables user search;
+        # any subsequent auth-field change clears it again.
+        self.auth_widget.connection_verified.connect(self._on_connection_verified)
+        self.auth_widget.connection_invalidated.connect(self._on_connection_invalidated)
+
     # ------------------------------------------------------------------
     # Settings persistence
     # ------------------------------------------------------------------
@@ -220,6 +225,20 @@ class MainWindow(QMainWindow):
     def _on_export_worker_done(self) -> None:
         if self._export_thread is not None:
             self._export_thread.quit()
+
+    # ------------------------------------------------------------------
+    # Connection-verify handlers
+    # ------------------------------------------------------------------
+
+    def _on_connection_verified(self, config: object) -> None:
+        # assert is defensive; PySide6 Signal(object) idiom requires runtime type guard
+        assert isinstance(config, ExportConfig)
+        self.user_search_widget.set_search_fn(
+            lambda query: self._svc.search_users(config, query)
+        )
+
+    def _on_connection_invalidated(self) -> None:
+        self.user_search_widget.set_search_fn(None)
 
     # ------------------------------------------------------------------
     # Validation
