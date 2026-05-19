@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -31,10 +32,11 @@ def mock_svc() -> MagicMock:
 
 
 @pytest.fixture
-def auth_widget(qtbot, mock_svc: MagicMock) -> AuthWidget:
+def auth_widget(qtbot, mock_svc: MagicMock) -> Generator[AuthWidget, None, None]:
     w = AuthWidget(service=mock_svc)
     qtbot.addWidget(w)
-    return w
+    yield w
+    w.stop_running_threads()
 
 
 @pytest.fixture

@@ -323,10 +323,8 @@ class AuthWidget(QGroupBox):
         worker.moveToThread(thread)
         worker.finished.connect(self._on_conn_finished)
         worker.failed.connect(self._on_conn_failed)
-        worker.finished.connect(lambda *_: self.test_btn.setEnabled(True))
-        worker.failed.connect(lambda _: self.test_btn.setEnabled(True))
-        worker.finished.connect(lambda *_: thread.quit())
-        worker.failed.connect(lambda _: thread.quit())
+        worker.finished.connect(self._on_conn_worker_done)
+        worker.failed.connect(self._on_conn_worker_done)
         thread.finished.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._clear_conn_refs)
@@ -349,6 +347,11 @@ class AuthWidget(QGroupBox):
     def _on_conn_failed(self, message: str) -> None:
         self.status_label.setText(message)
 
+    def _on_conn_worker_done(self) -> None:
+        self.test_btn.setEnabled(True)
+        if self._conn_thread is not None:
+            self._conn_thread.quit()
+
     def _clear_conn_refs(self) -> None:
         self._conn_thread = None
         self._conn_worker = None
@@ -362,10 +365,8 @@ class AuthWidget(QGroupBox):
         worker.moveToThread(thread)
         worker.discovered.connect(self._on_discovered)
         worker.failed.connect(self._on_discover_failed)
-        worker.discovered.connect(lambda _: self.sa_panel.discover_btn.setEnabled(True))
-        worker.failed.connect(lambda _: self.sa_panel.discover_btn.setEnabled(True))
-        worker.discovered.connect(lambda _: thread.quit())
-        worker.failed.connect(lambda _: thread.quit())
+        worker.discovered.connect(self._on_disc_worker_done)
+        worker.failed.connect(self._on_disc_worker_done)
         thread.finished.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._clear_disc_refs)
@@ -385,6 +386,11 @@ class AuthWidget(QGroupBox):
             f"Discovery failed: {message}"  # i18n: auth.status.discovery_failed
         )
 
+    def _on_disc_worker_done(self) -> None:
+        self.sa_panel.discover_btn.setEnabled(True)
+        if self._disc_thread is not None:
+            self._disc_thread.quit()
+
     def _clear_disc_refs(self) -> None:
         self._disc_thread = None
         self._disc_worker = None
@@ -402,9 +408,12 @@ class AuthWidget(QGroupBox):
 
     def stop_running_threads(self) -> None:
         # TODO etappe 5b: graceful cancel for export worker
-        for thread in (self._conn_thread, self._disc_thread):
-            if thread is not None and thread.isRunning():
-                thread.quit()
+        threads = [t for t in (self._conn_thread, self._disc_thread) if t is not None and t.isRunning()]
+        for thread in threads:
+            thread.quit()
+        for thread in threads:
+            if not thread.wait(2000):
+                logger.warning("Thread did not stop within timeout: %r", thread)
 
     # ------------------------------------------------------------------
     # Settings
