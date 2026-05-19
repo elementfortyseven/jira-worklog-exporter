@@ -61,3 +61,6 @@ tests/fixtures/real_*.json
 
 # Local smoke tests
 e2e_smoke.py
+
+# Scratch / probe scripts (never commit)
+.scratch/
