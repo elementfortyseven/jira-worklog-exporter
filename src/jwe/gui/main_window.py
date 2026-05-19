@@ -179,7 +179,6 @@ class MainWindow(QMainWindow):
         worker.finished.connect(self._on_export_worker_done)
         worker.failed.connect(self._on_export_worker_done)
         thread.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._clear_export_refs)
         thread.started.connect(worker.run)
         self._export_thread = thread
@@ -218,6 +217,17 @@ class MainWindow(QMainWindow):
         self._update_export_btn()
 
     def _clear_export_refs(self) -> None:
+        if self._export_thread is not None:
+            # NOTE: wait() reduces but does not eliminate the OS-thread-cleanup race;
+            #       Qt docs note that finished() may fire before thread-local destructors
+            #       complete. Full elimination requires a different worker-lifecycle
+            #       pattern (see commit message for context). Remove this wait() only
+            #       after that refactor.
+            if not self._export_thread.wait(2000):
+                logger.warning(
+                    "Export thread did not stop within timeout: %r",
+                    self._export_thread,
+                )
         self._export_thread = None
         self._export_worker = None
         self._cancel_event = None
