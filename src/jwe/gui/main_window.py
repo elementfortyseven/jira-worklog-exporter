@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from datetime import date
 from pathlib import Path
@@ -26,6 +27,8 @@ from jwe.gui.widgets.output import OutputWidget
 from jwe.gui.widgets.status import StatusWidget
 from jwe.gui.widgets.user_search import UserSearchWidget
 from jwe.gui.workers.export_worker import ExportWorker
+
+logger = logging.getLogger(__name__)
 
 _SETTINGS_ORG = "jira-worklog-exporter"
 _SETTINGS_APP = "jwe-gui"
@@ -135,10 +138,16 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.auth_widget.stop_running_threads()
+        self.user_search_widget.stop_running_threads()
         if self._export_thread is not None and self._export_thread.isRunning():
             if self._cancel_event is not None:
                 self._cancel_event.set()
             self._export_thread.quit()
+            if not self._export_thread.wait(2000):
+                logger.warning(
+                    "Export thread did not stop within timeout: %r",
+                    self._export_thread,
+                )
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("lang", self._lang)
         self.auth_widget.save_settings(self._settings)
@@ -162,8 +171,8 @@ class MainWindow(QMainWindow):
         worker.log_message.connect(self.status_widget.append_log_line)
         worker.finished.connect(self._on_export_finished)
         worker.failed.connect(self._on_export_failed)
-        worker.finished.connect(lambda _: thread.quit())
-        worker.failed.connect(lambda _: thread.quit())
+        worker.finished.connect(self._on_export_worker_done)
+        worker.failed.connect(self._on_export_worker_done)
         thread.finished.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._clear_export_refs)
@@ -207,6 +216,10 @@ class MainWindow(QMainWindow):
         self._export_thread = None
         self._export_worker = None
         self._cancel_event = None
+
+    def _on_export_worker_done(self) -> None:
+        if self._export_thread is not None:
+            self._export_thread.quit()
 
     # ------------------------------------------------------------------
     # Validation

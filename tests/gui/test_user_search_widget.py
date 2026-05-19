@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from unittest.mock import MagicMock
 
 import pytest
@@ -31,10 +32,11 @@ def mock_search_fn() -> MagicMock:
 
 
 @pytest.fixture
-def widget(qtbot, mock_search_fn: MagicMock) -> UserSearchWidget:
+def widget(qtbot, mock_search_fn: MagicMock) -> Generator[UserSearchWidget, None, None]:
     w = UserSearchWidget(search_fn=mock_search_fn)
     qtbot.addWidget(w)
-    return w
+    yield w
+    w.stop_running_threads()
 
 
 # ---------------------------------------------------------------------------

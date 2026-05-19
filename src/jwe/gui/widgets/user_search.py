@@ -136,8 +136,8 @@ class UserSearchWidget(QGroupBox):
         worker.moveToThread(thread)
         worker.results.connect(self._on_search_results)
         worker.failed.connect(self._on_search_failed)
-        worker.results.connect(lambda _: thread.quit())
-        worker.failed.connect(lambda _: thread.quit())
+        worker.results.connect(self._on_search_worker_done)
+        worker.failed.connect(self._on_search_worker_done)
         thread.finished.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
         thread.finished.connect(self._clear_search_refs)
@@ -158,6 +158,10 @@ class UserSearchWidget(QGroupBox):
     def _on_search_failed(self, message: str) -> None:
         self.results_list.clear()
         self.search_status_label.setText(message)
+
+    def _on_search_worker_done(self) -> None:
+        if self._search_thread is not None:
+            self._search_thread.quit()
 
     def _clear_search_refs(self) -> None:
         self._search_thread = None
@@ -275,6 +279,11 @@ class UserSearchWidget(QGroupBox):
         """Abort any in-flight search worker."""
         if self._search_thread is not None and self._search_thread.isRunning():
             self._search_thread.quit()
+            if not self._search_thread.wait(2000):
+                logger.warning(
+                    "Search thread did not stop within timeout: %r",
+                    self._search_thread,
+                )
 
     # ------------------------------------------------------------------
     # i18n
