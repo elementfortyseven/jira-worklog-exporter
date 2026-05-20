@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -14,27 +15,32 @@ from PySide6.QtWidgets import (
 
 
 class StatusWidget(QWidget):
-    """Export button, status label, progress bar, counters, and log panel."""
+    """Export button, cancel button, status label, progress bar, counters, log panel, and result buttons."""
 
     _MAX_LOG_LINES = 50
+
+    cancel_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._build_ui()
 
     def _build_ui(self) -> None:
-        self.setFixedHeight(140)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(8, 4, 8, 4)
         outer.setSpacing(4)
 
-        # Row 1: export button + status label
+        # Row 1: export button + cancel button + status label
         btn_row = QWidget()
         btn_layout = QHBoxLayout(btn_row)
         btn_layout.setContentsMargins(0, 0, 0, 0)
         self.export_btn = QPushButton("Start Export")  # i18n: status.btn.export
         self.export_btn.setEnabled(False)
         btn_layout.addWidget(self.export_btn)
+        self.cancel_btn = QPushButton("Abbrechen")  # i18n: status.btn.cancel
+        self.cancel_btn.setVisible(False)
+        self.cancel_btn.clicked.connect(self.cancel_requested)
+        btn_layout.addWidget(self.cancel_btn)
         self.status_label = QLabel("Fill in required fields")  # i18n: status.label.not_ready
         btn_layout.addWidget(self.status_label, 1)
         outer.addWidget(btn_row)
@@ -62,8 +68,21 @@ class StatusWidget(QWidget):
         # Row 4: scrollable read-only log panel (hidden until export starts)
         self.log_panel = QTextEdit()
         self.log_panel.setReadOnly(True)
+        self.log_panel.setFixedHeight(80)
         self.log_panel.setVisible(False)
         outer.addWidget(self.log_panel)
+
+        # Row 5: result buttons (hidden until export finishes)
+        self._result_row = QWidget()
+        result_layout = QHBoxLayout(self._result_row)
+        result_layout.setContentsMargins(0, 0, 0, 0)
+        self.open_csv_btn = QPushButton("CSV oeffnen")       # i18n: status.btn.open_csv
+        self.open_folder_btn = QPushButton("Ordner oeffnen") # i18n: status.btn.open_folder
+        result_layout.addWidget(self.open_csv_btn)
+        result_layout.addWidget(self.open_folder_btn)
+        result_layout.addStretch()
+        self._result_row.setVisible(False)
+        outer.addWidget(self._result_row)
 
     # ------------------------------------------------------------------
     # Public API (called by MainWindow._update_export_btn)
@@ -88,6 +107,9 @@ class StatusWidget(QWidget):
         self._counter_row.setVisible(True)
         self.progress_bar.setVisible(True)
         self.log_panel.setVisible(True)
+        self.cancel_btn.setEnabled(True)
+        self.cancel_btn.setVisible(True)
+        self._result_row.setVisible(False)
 
     def stop_progress_display(self) -> None:
         """Hide all progress widgets and reset content.
@@ -103,11 +125,26 @@ class StatusWidget(QWidget):
         self.issue_label.setText("Issues: 0")      # i18n: status.counter.issues_n
         self.worklog_label.setText("Worklogs: 0")  # i18n: status.counter.worklogs_n
         self.log_panel.clear()
+        self.cancel_btn.setVisible(False)
+        self._result_row.setVisible(False)
 
     def on_progress_done(self) -> None:
         """Stop the marquee animation; keep counter and log visible for the user to read."""
         self.progress_bar.setRange(0, 1)
         self.progress_bar.setValue(1)
+
+    def disable_cancel_btn(self) -> None:
+        """Disable the cancel button (keep visible) to signal cancellation is pending."""
+        self.cancel_btn.setEnabled(False)
+
+    def hide_cancel_btn(self) -> None:
+        """Hide the cancel button."""
+        self.cancel_btn.setVisible(False)
+
+    def show_result_buttons(self, csv_path: str) -> None:
+        """Make the result row visible after a successful export."""
+        _ = csv_path  # path stored in MainWindow; buttons call back via slots
+        self._result_row.setVisible(True)
 
     # ------------------------------------------------------------------
     # Slots wired to ExportWorker signals

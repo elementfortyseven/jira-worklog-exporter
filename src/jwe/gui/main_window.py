@@ -8,11 +8,12 @@ from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QByteArray, QSettings, Qt, QThread, Signal
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import QByteArray, QSettings, Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QCloseEvent, QDesktopServices
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -55,6 +56,7 @@ class MainWindow(QMainWindow):
         self._export_thread: QThread | None = None
         self._export_worker: ExportWorker | None = None
         self._cancel_event: threading.Event | None = None
+        self._last_output_path: str | None = None
 
         self.auth_widget = AuthWidget(service=self._svc)
         self.user_search_widget = UserSearchWidget()
@@ -126,6 +128,11 @@ class MainWindow(QMainWindow):
         self.auth_widget.connection_verified.connect(self._on_connection_verified)
         self.auth_widget.connection_invalidated.connect(self._on_connection_invalidated)
 
+        # Result buttons and cancel button wiring.
+        self.status_widget.open_csv_btn.clicked.connect(self._on_open_csv_clicked)
+        self.status_widget.open_folder_btn.clicked.connect(self._on_open_folder_clicked)
+        self.status_widget.cancel_requested.connect(self._on_cancel_clicked)
+
     # ------------------------------------------------------------------
     # Settings persistence
     # ------------------------------------------------------------------
@@ -145,6 +152,9 @@ class MainWindow(QMainWindow):
         self.auth_widget.stop_running_threads()
         self.user_search_widget.stop_running_threads()
         if self._export_thread is not None and self._export_thread.isRunning():
+            if not self._confirm_close_during_export():
+                event.ignore()
+                return
             if self._cancel_event is not None:
                 self._cancel_event.set()
             self._export_thread.quit()
@@ -176,9 +186,10 @@ class MainWindow(QMainWindow):
         worker.log_message.connect(self.status_widget.append_log_line)
         worker.finished.connect(self._on_export_finished)
         worker.failed.connect(self._on_export_failed)
+        worker.cancelled.connect(self._on_export_cancelled)
         worker.finished.connect(self._on_export_worker_done)
         worker.failed.connect(self._on_export_worker_done)
-        thread.finished.connect(worker.deleteLater)
+        worker.cancelled.connect(self._on_export_worker_done)
         thread.finished.connect(self._clear_export_refs)
         thread.started.connect(worker.run)
         self._export_thread = thread
@@ -202,32 +213,36 @@ class MainWindow(QMainWindow):
         return config
 
     def _on_export_finished(self, output_path: str) -> None:
+        self._last_output_path = output_path if output_path else None
         self.status_widget.on_progress_done()
+        self.status_widget.hide_cancel_btn()
         msg = (
             f"Export complete. Output: {output_path}"  # i18n: status.log.export_complete
             if output_path
             else "Dry run complete."                   # i18n: status.log.dry_run_complete
         )
         self.status_widget.append_log_line(msg)
+        if output_path:
+            self.status_widget.show_result_buttons(output_path)
         self._update_export_btn()
 
     def _on_export_failed(self, message: str) -> None:
         self.status_widget.on_progress_done()
+        self.status_widget.hide_cancel_btn()
         self.status_widget.append_log_line(f"Error: {message}")  # i18n: status.log.error
         self._update_export_btn()
 
     def _clear_export_refs(self) -> None:
-        if self._export_thread is not None:
-            # NOTE: wait() reduces but does not eliminate the OS-thread-cleanup race;
-            #       Qt docs note that finished() may fire before thread-local destructors
-            #       complete. Full elimination requires a different worker-lifecycle
-            #       pattern (see commit message for context). Remove this wait() only
-            #       after that refactor.
-            if not self._export_thread.wait(2000):
-                logger.warning(
-                    "Export thread did not stop within timeout: %r",
-                    self._export_thread,
-                )
+        # NOTE: wait() reduces but does not eliminate the OS-thread-cleanup race;
+        #       Qt docs note that finished() may fire before thread-local destructors
+        #       complete. Full elimination requires a different worker-lifecycle
+        #       pattern (see commit message for context). Remove this wait() only
+        #       after that refactor.
+        if self._export_thread is not None and not self._export_thread.wait(2000):
+            logger.warning(
+                "Export thread did not stop within timeout: %r",
+                self._export_thread,
+            )
         self._export_thread = None
         self._export_worker = None
         self._cancel_event = None
@@ -235,6 +250,36 @@ class MainWindow(QMainWindow):
     def _on_export_worker_done(self) -> None:
         if self._export_thread is not None:
             self._export_thread.quit()
+
+    def _on_cancel_clicked(self) -> None:
+        if self._cancel_event is not None:
+            self._cancel_event.set()
+        self.status_widget.disable_cancel_btn()
+        self.status_widget.append_log_line("Abbruch wird durchgefuehrt...")  # i18n: status.log.cancelling
+
+    def _on_export_cancelled(self) -> None:
+        self.status_widget.on_progress_done()
+        self.status_widget.hide_cancel_btn()
+        self.status_widget.append_log_line("Export abgebrochen.")  # i18n: status.log.cancelled
+        self._update_export_btn()
+
+    def _confirm_close_during_export(self) -> bool:
+        reply = QMessageBox.question(
+            self,
+            "Export laeuft",  # i18n: dialog.close_during_export.title
+            "Export laeuft. Abbrechen und schliessen?",  # i18n: dialog.close_during_export.text
+        )
+        return reply == QMessageBox.StandardButton.Yes
+
+    def _on_open_csv_clicked(self) -> None:
+        if self._last_output_path:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self._last_output_path))
+
+    def _on_open_folder_clicked(self) -> None:
+        if self._last_output_path:
+            QDesktopServices.openUrl(
+                QUrl.fromLocalFile(str(Path(self._last_output_path).parent))
+            )
 
     # ------------------------------------------------------------------
     # Connection-verify handlers

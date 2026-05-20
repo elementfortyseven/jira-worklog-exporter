@@ -23,6 +23,7 @@ class ExportWorker(QObject):
     log_message = Signal(str)            # human-readable status line
     finished = Signal(str)               # output_path (empty string for dry_run)
     failed = Signal(str)                 # user-facing error message
+    cancelled = Signal()                 # emitted when generator ended without result or error
 
     def __init__(
         self,
@@ -40,7 +41,8 @@ class ExportWorker(QObject):
         self._cancel_event = cancel_event
 
     def run(self) -> None:
-        """Consume the generator; emit progress_updated, log_message, finished, or failed."""
+        """Consume the generator; emit progress_updated, log_message, finished, failed, or cancelled."""
+        _terminal_emitted = False
         try:
             for event in self._run_fn(self._config, self._cancel_event):
                 if isinstance(event, ExportProgress):
@@ -50,5 +52,9 @@ class ExportWorker(QObject):
                         self.log_message.emit(event.message)
                 elif isinstance(event, ExportResult):
                     self.finished.emit(event.output_path or "")
+                    _terminal_emitted = True
         except Exception as exc:
             self.failed.emit(str(exc))
+            _terminal_emitted = True
+        if not _terminal_emitted:
+            self.cancelled.emit()

@@ -175,6 +175,23 @@ class TestRunExport:
         assert not list(tmp_path.glob("*.csv"))
 
     @responses.activate
+    def test_run_export_yields_no_result_when_cancelled(
+        self, base_config: ExportConfig
+    ) -> None:
+        """Cancelled run yields no ExportResult -- only a final ExportProgress."""
+        cancel = threading.Event()
+        cancel.set()
+        responses.add(responses.GET, _MYSELF_URL, json=_MYSELF)
+        responses.add(responses.POST, _SEARCH_URL, json=_search_page([_issue("PROJ-1")]))
+
+        events = list(run_export(base_config, cancel_event=cancel))
+
+        assert not any(isinstance(e, ExportResult) for e in events)
+        cancelled_progress = events[-1]
+        assert isinstance(cancelled_progress, ExportProgress)
+        assert "cancelled" in cancelled_progress.message.lower()
+
+    @responses.activate
     def test_cancel_before_first_issue_yields_zero_counts(
         self, base_config: ExportConfig
     ) -> None:
@@ -192,9 +209,12 @@ class TestRunExport:
 
         events = list(run_export(base_config, cancel_event=cancel))
 
-        result = next(e for e in events if isinstance(e, ExportResult))
-        assert result.issues_seen == 0
-        assert result.worklogs_written == 0
+        # Cancelled runs yield no ExportResult -- use final ExportProgress instead.
+        assert not any(isinstance(e, ExportResult) for e in events)
+        final = events[-1]
+        assert isinstance(final, ExportProgress)
+        assert final.issues_seen == 0
+        assert final.worklogs_written == 0
 
     @responses.activate
     def test_cancel_after_first_issue_yields_partial_counts(
@@ -228,11 +248,16 @@ class TestRunExport:
 
         events = list(run_export(base_config, cancel_event=cancel))
 
-        result = next(e for e in events if isinstance(e, ExportResult))
-        assert result.issues_seen == 1
-        assert result.worklogs_written == 1
-        assert result.output_path is not None
-        lines = Path(result.output_path).read_text(encoding="utf-8-sig").splitlines()
+        # Cancelled runs yield no ExportResult -- use final ExportProgress for counts.
+        assert not any(isinstance(e, ExportResult) for e in events)
+        final = events[-1]
+        assert isinstance(final, ExportProgress)
+        assert final.issues_seen == 1
+        assert final.worklogs_written == 1
+        # The CSV is still written (the with-block closes normally after the break).
+        csv_files = list(tmp_path.glob("*.csv"))
+        assert len(csv_files) == 1
+        lines = csv_files[0].read_text(encoding="utf-8-sig").splitlines()
         assert len(lines) == 2  # 1 header + 1 data row
 
     @responses.activate

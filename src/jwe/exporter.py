@@ -160,10 +160,18 @@ def run_export(
                     worklogs_written=worklogs_written,
                 )
 
+    if cancel_event is not None and cancel_event.is_set():
+        yield ExportProgress(
+            issues_seen=issues_seen,
+            worklogs_written=worklogs_written,
+            message="Export cancelled.",  # i18n: exporter.msg.cancelled
+        )
+        return
+
     yield ExportProgress(
         issues_seen=issues_seen,
         worklogs_written=worklogs_written,
-        message="Export complete.",
+        message="Export complete.",  # i18n: exporter.msg.complete
     )
     yield ExportResult(
         issues_seen=issues_seen,

@@ -5,8 +5,6 @@ from __future__ import annotations
 import threading
 from collections.abc import Iterator
 
-import pytest
-
 from jwe.config import ExportConfig
 from jwe.exporter import ExportProgress, ExportResult
 from jwe.gui.workers.export_worker import ExportWorker
@@ -224,3 +222,41 @@ class TestCancelEvent:
         worker = _make_worker([_RESULT_ZERO], cancel_event=ce)
         worker.run()
         assert not ce.is_set()
+
+
+# ---------------------------------------------------------------------------
+# W-11 / W-12: cancelled signal (Etappe 5b)
+# ---------------------------------------------------------------------------
+
+
+class TestCancelledSignal:
+    def test_worker_emits_cancelled_when_generator_ends_without_result(
+        self, qtbot
+    ) -> None:
+        """Generator yields only ExportProgress (no ExportResult) -> cancelled emitted."""
+        received: list[bool] = []
+
+        def run_fn(
+            config: ExportConfig, ev: threading.Event
+        ) -> Iterator[ExportProgress | ExportResult]:
+            yield ExportProgress(
+                issues_seen=0, worklogs_written=0, message="Export cancelled."
+            )
+            # returns without yielding ExportResult
+
+        worker = ExportWorker(_MINIMAL_CONFIG, run_fn, threading.Event())
+        worker.cancelled.connect(lambda: received.append(True))
+        worker.run()
+
+        assert received == [True]
+
+    def test_worker_not_emits_cancelled_when_result_yielded(
+        self, qtbot
+    ) -> None:
+        """Normal completion with ExportResult -> cancelled NOT emitted."""
+        received: list[bool] = []
+        worker = _make_worker([_RESULT_ZERO])
+        worker.cancelled.connect(lambda: received.append(True))
+        worker.run()
+
+        assert received == []
