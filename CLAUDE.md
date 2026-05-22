@@ -30,6 +30,32 @@ Windows 11 host; PowerShell is the default shell. Bash syntax is not available. 
 - **ASCII only** — no `§`, `->` not `→`, no `–`, no `**`. PowerShell quoting breaks on non-ASCII; commits must be readable in every console.
 - **Multiple `-m` flags** for multi-line messages; no embedded newlines inside a single `-m` string.
 - **No `Co-Authored-By` trailer** unless explicitly requested.
+- **Long commit messages** — when a message requires more than five `-m` flags or exceeds roughly 800 bytes total, write the message to `.scratch/<descriptive-name>.txt` and commit with `git commit -F .scratch/<descriptive-name>.txt`. The `.scratch/` directory is excluded via `.gitignore`; the file may be deleted after a successful commit or left in place.
+
+### Framework bug research order
+
+When a framework bug or unexpected library behavior appears, follow this order — each step can make the next unnecessary:
+
+1. Search bug trackers, forums, and Stack Overflow for the symptom (is it a known issue?)
+2. Read the official documentation of the affected component
+3. Read the library source under `.venv/Lib/site-packages/` for implementation details
+4. Check code repositories with working examples of the pattern in question — accompanying technical books, reference implementations, or established open-source projects with similar use cases
+5. Only then: explore alternative solution patterns independently
+
+Do not skip steps or start at step 5.
+
+### Scope discipline for lint and type errors
+
+Pre-existing lint, type, or other errors in files outside the current commit's scope are **reported, not silently fixed**. Resolution options:
+
+- Fix in a **separate follow-up commit** with its own justification, or
+- Leave in place with an **explicit decision** recorded in the commit message or chat.
+
+Feature work and pre-existing bug fixes are never mixed in a single commit.
+
+### Memory discipline
+
+Memory entries are reserved for lasting lessons that remain relevant across multiple projects or sessions: behavioral patterns, user preferences, recurring mistakes. Session handovers — summaries of in-progress work to be picked up in the next session — belong in chat output, not in memory. Writing a handover to memory pollutes the index and ages out of relevance immediately.
 
 ### GUI Etappen workflow
 
