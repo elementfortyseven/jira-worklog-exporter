@@ -117,7 +117,8 @@ class OutputWidget(QGroupBox):
         if idx >= 0:
             self.column_profile_combo.setCurrentIndex(idx)
 
-        api_ver = int(settings.value(f"{_S}/api_version", 3))  # type: ignore[arg-type]
+        # QSettings.value() returns object (str or int depending on backend); int(str(...)) handles both.
+        api_ver = int(str(settings.value(f"{_S}/api_version", 3)))
         idx = self.api_version_combo.findData(api_ver)
         if idx >= 0:
             self.api_version_combo.setCurrentIndex(idx)

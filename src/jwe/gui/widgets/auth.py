@@ -459,7 +459,8 @@ class AuthWidget(QGroupBox):
         def _str(key: str, default: str = "") -> str:
             return str(settings.value(key, default))
 
-        mode_idx = int(settings.value(f"{_S}/mode", 0))
+        # QSettings.value() returns object (str or int depending on backend); int(str(...)) handles both.
+        mode_idx = int(str(settings.value(f"{_S}/mode", 0)))
         if mode_idx == 1:
             self.user_radio.setChecked(True)
             self.stack.setCurrentIndex(1)
@@ -470,7 +471,8 @@ class AuthWidget(QGroupBox):
         self.sa_panel.cloud_id_field.setText(_str(f"{_S}/cloud_id"))
         self.sa_panel.email_field.setText(_str(f"{_S}/sa_email"))
         self.sa_panel.discovery_url_field.setText(_str(f"{_S}/sa_discovery_url"))
-        header_idx = int(settings.value(f"{_S}/auth_header", 0))
+        # QSettings.value() returns object (str or int depending on backend); int(str(...)) handles both.
+        header_idx = int(str(settings.value(f"{_S}/auth_header", 0)))
         self.sa_panel.auth_header_combo.setCurrentIndex(header_idx)
         self.user_panel.site_url_field.setText(_str(f"{_S}/site_url"))
         self.user_panel.email_field.setText(_str(f"{_S}/email"))

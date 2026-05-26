@@ -32,6 +32,16 @@ Windows 11 host; PowerShell is the default shell. Bash syntax is not available. 
 - **No `Co-Authored-By` trailer** unless explicitly requested.
 - **Long commit messages** — when a message requires more than five `-m` flags or exceeds roughly 800 bytes total, write the message to `.scratch/<descriptive-name>.txt` and commit with `git commit -F .scratch/<descriptive-name>.txt`. The `.scratch/` directory is excluded via `.gitignore`; the file may be deleted after a successful commit or left in place.
 
+### Local verification must match CI scope
+
+Run each tool without arguments so it checks the same scope as CI:
+
+- **mypy:** `mypy` (no args) — checks all of `src/` per `pyproject.toml files = ["src"]`. Running `mypy src/jwe/gui/some_file.py` limits scope to that file and misses errors in others.
+- **ruff:** `ruff check .` — already full-scope.
+- **pytest:** `pytest` — already full-scope.
+
+Running single-file mypy is the recurring trap: it can pass locally while CI fails because other files in `src/` contain errors.
+
 ### Framework bug research order
 
 When a framework bug or unexpected library behavior appears, follow this order — each step can make the next unnecessary:
