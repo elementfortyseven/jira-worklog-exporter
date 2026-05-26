@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtCore import QSettings, Qt, QThread
+from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QCloseEvent, QDesktopServices
 from PySide6.QtWidgets import QListWidgetItem
 
@@ -134,7 +134,7 @@ class TestCloseEvent:
     ) -> None:
         mw = MainWindow(_settings=isolated_settings)
         qtbot.addWidget(mw)
-        # No export thread at all.
+        # No active export (_export_active is False by default).
         event = QCloseEvent()
         mw.closeEvent(event)
         assert event.isAccepted()
@@ -144,11 +144,7 @@ class TestCloseEvent:
     ) -> None:
         mw = MainWindow(_settings=isolated_settings)
         qtbot.addWidget(mw)
-        mock_thread = MagicMock(spec=QThread)
-        mock_thread.isRunning.return_value = True
-        mock_thread.wait.return_value = True
-        mw._export_thread = mock_thread
-        mw._cancel_event = threading.Event()
+        mw._export_active = True
 
         dialog_called: list[bool] = []
         mw._confirm_close_during_export = lambda: (  # type: ignore[method-assign]
@@ -165,10 +161,7 @@ class TestCloseEvent:
     ) -> None:
         mw = MainWindow(_settings=isolated_settings)
         qtbot.addWidget(mw)
-        mock_thread = MagicMock(spec=QThread)
-        mock_thread.isRunning.return_value = True
-        mw._export_thread = mock_thread
-        mw._cancel_event = threading.Event()
+        mw._export_active = True
 
         mw._confirm_close_during_export = lambda: False  # type: ignore[method-assign]
 
@@ -176,26 +169,22 @@ class TestCloseEvent:
         mw.closeEvent(event)
 
         assert not event.isAccepted()
-        mock_thread.quit.assert_not_called()
 
     def test_close_event_accepted_when_dialog_confirmed(
         self, qtbot, isolated_settings: QSettings
     ) -> None:
         mw = MainWindow(_settings=isolated_settings)
         qtbot.addWidget(mw)
-        mock_thread = MagicMock(spec=QThread)
-        mock_thread.isRunning.return_value = True
-        mock_thread.wait.return_value = True
-        mw._export_thread = mock_thread
-        mw._cancel_event = threading.Event()
+        cancel_event = threading.Event()
+        mw._export_active = True
+        mw._cancel_event = cancel_event
 
         mw._confirm_close_during_export = lambda: True  # type: ignore[method-assign]
 
         event = QCloseEvent()
         mw.closeEvent(event)
 
-        mock_thread.quit.assert_called_once()
-        mock_thread.wait.assert_called_once_with(2000)
+        assert cancel_event.is_set()
         assert event.isAccepted()
 
     def test_close_event_not_ignored_without_running_export(
@@ -203,9 +192,7 @@ class TestCloseEvent:
     ) -> None:
         mw = MainWindow(_settings=isolated_settings)
         qtbot.addWidget(mw)
-        mock_thread = MagicMock(spec=QThread)
-        mock_thread.isRunning.return_value = False
-        mw._export_thread = mock_thread
+        # _export_active is False by default; no dialog shown, event accepted.
 
         event = QCloseEvent()
         mw.closeEvent(event)
@@ -271,12 +258,11 @@ class TestResultButtonsVisibility:
     def test_result_buttons_visible_after_export_finished(
         self,
         qtbot,
-        isolated_settings: QSettings,
+        make_main_window,
         mock_svc: MagicMock,
         tmp_path: Path,
     ) -> None:
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         mw.show()
         _make_all_valid(mw, tmp_path)
 
@@ -290,15 +276,14 @@ class TestResultButtonsVisibility:
     def test_result_buttons_not_visible_after_export_cancelled(
         self,
         qtbot,
-        isolated_settings: QSettings,
+        make_main_window,
         tmp_path: Path,
     ) -> None:
         mock_svc = MagicMock()
         mock_svc.load_token.return_value = None
         mock_svc.run_export.side_effect = _cancelled_export_gen
 
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         mw.show()
         _make_all_valid(mw, tmp_path)
 

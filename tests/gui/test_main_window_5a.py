@@ -81,10 +81,9 @@ def _make_all_valid(mw: MainWindow, tmp_path: Path) -> None:
 
 class TestExportWorkerStarted:
     def test_run_export_called_on_btn_click(
-        self, qtbot, isolated_settings: QSettings, mock_svc: MagicMock, tmp_path: Path
+        self, qtbot, make_main_window, mock_svc: MagicMock, tmp_path: Path
     ) -> None:
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         _make_all_valid(mw, tmp_path)
 
         qtbot.mouseClick(mw.status_widget.export_btn, Qt.MouseButton.LeftButton)
@@ -111,7 +110,7 @@ class TestExportWorkerStarted:
 
 class TestExportBtnDisabledDuringExport:
     def test_export_btn_disabled_while_running(
-        self, qtbot, isolated_settings: QSettings, tmp_path: Path
+        self, qtbot, make_main_window, tmp_path: Path
     ) -> None:
         started = threading.Event()
         unblock = threading.Event()
@@ -131,8 +130,7 @@ class TestExportBtnDisabledDuringExport:
         mock_svc = MagicMock()
         mock_svc.load_token.return_value = None
         mock_svc.run_export.side_effect = slow_gen
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         _make_all_valid(mw, tmp_path)
 
         qtbot.mouseClick(mw.status_widget.export_btn, Qt.MouseButton.LeftButton)
@@ -153,10 +151,9 @@ class TestExportBtnDisabledDuringExport:
 
 class TestExportBtnReenabledAfterFinished:
     def test_btn_re_enabled_after_successful_export(
-        self, qtbot, isolated_settings: QSettings, mock_svc: MagicMock, tmp_path: Path
+        self, qtbot, make_main_window, mock_svc: MagicMock, tmp_path: Path
     ) -> None:
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         _make_all_valid(mw, tmp_path)
 
         qtbot.mouseClick(mw.status_widget.export_btn, Qt.MouseButton.LeftButton)
@@ -167,10 +164,9 @@ class TestExportBtnReenabledAfterFinished:
         assert mw.status_widget.export_btn.isEnabled()
 
     def test_progress_bar_stopped_after_finished(
-        self, qtbot, isolated_settings: QSettings, mock_svc: MagicMock, tmp_path: Path
+        self, qtbot, make_main_window, mock_svc: MagicMock, tmp_path: Path
     ) -> None:
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         mw.show()
         _make_all_valid(mw, tmp_path)
 
@@ -189,13 +185,12 @@ class TestExportBtnReenabledAfterFinished:
 
 class TestExportBtnReenabledAfterFailed:
     def test_btn_re_enabled_after_failed_export(
-        self, qtbot, isolated_settings: QSettings, tmp_path: Path
+        self, qtbot, make_main_window, tmp_path: Path
     ) -> None:
         mock_svc = MagicMock()
         mock_svc.load_token.return_value = None
         mock_svc.run_export.side_effect = _failing_export_gen
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         _make_all_valid(mw, tmp_path)
 
         qtbot.mouseClick(mw.status_widget.export_btn, Qt.MouseButton.LeftButton)
@@ -206,13 +201,12 @@ class TestExportBtnReenabledAfterFailed:
         assert mw.status_widget.export_btn.isEnabled()
 
     def test_log_panel_shows_error_after_failed(
-        self, qtbot, isolated_settings: QSettings, tmp_path: Path
+        self, qtbot, make_main_window, tmp_path: Path
     ) -> None:
         mock_svc = MagicMock()
         mock_svc.load_token.return_value = None
         mock_svc.run_export.side_effect = _failing_export_gen
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         _make_all_valid(mw, tmp_path)
 
         qtbot.mouseClick(mw.status_widget.export_btn, Qt.MouseButton.LeftButton)
@@ -304,7 +298,7 @@ class TestBuildConfigDates:
 
 class TestCancelEventPassedToRunFn:
     def test_cancel_event_is_threading_event(
-        self, qtbot, isolated_settings: QSettings, tmp_path: Path
+        self, qtbot, make_main_window, tmp_path: Path
     ) -> None:
         received: list[threading.Event] = []
 
@@ -322,8 +316,7 @@ class TestCancelEventPassedToRunFn:
         mock_svc = MagicMock()
         mock_svc.load_token.return_value = None
         mock_svc.run_export.side_effect = capturing_gen
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         _make_all_valid(mw, tmp_path)
 
         qtbot.mouseClick(mw.status_widget.export_btn, Qt.MouseButton.LeftButton)
@@ -332,7 +325,7 @@ class TestCancelEventPassedToRunFn:
         assert isinstance(received[0], threading.Event)
 
     def test_cancel_event_not_set_at_start(
-        self, qtbot, isolated_settings: QSettings, tmp_path: Path
+        self, qtbot, make_main_window, tmp_path: Path
     ) -> None:
         received: list[threading.Event] = []
 
@@ -350,8 +343,7 @@ class TestCancelEventPassedToRunFn:
         mock_svc = MagicMock()
         mock_svc.load_token.return_value = None
         mock_svc.run_export.side_effect = capturing_gen
-        mw = MainWindow(_settings=isolated_settings, service=mock_svc)
-        qtbot.addWidget(mw)
+        mw = make_main_window(service=mock_svc)
         _make_all_valid(mw, tmp_path)
 
         qtbot.mouseClick(mw.status_widget.export_btn, Qt.MouseButton.LeftButton)

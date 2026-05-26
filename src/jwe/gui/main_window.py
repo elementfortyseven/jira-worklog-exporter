@@ -39,6 +39,7 @@ class MainWindow(QMainWindow):
     """Top-level application window; orchestrates all section widgets."""
 
     language_changed = Signal(str)
+    _start_export_requested = Signal(object, object)
 
     def __init__(
         self,
@@ -53,9 +54,8 @@ class MainWindow(QMainWindow):
         )
         self._lang: str = "de"
         self._svc: Any = service if service is not None else _default_svc
-        self._export_thread: QThread | None = None
-        self._export_worker: ExportWorker | None = None
         self._cancel_event: threading.Event | None = None
+        self._export_active: bool = False
         self._last_output_path: str | None = None
 
         self.auth_widget = AuthWidget(service=self._svc)
@@ -68,6 +68,26 @@ class MainWindow(QMainWindow):
         self.lang_btn = QPushButton()
         self.lang_btn.setFlat(True)
         self.lang_btn.clicked.connect(self._toggle_language)
+
+        # Persistent export worker and thread.  The thread is started lazily on
+        # the first export, not here.  Pattern C guarantees the thread lives from
+        # first export until closeEvent -- lazy start only delays the beginning of
+        # that lifetime, not its end.  Tests that never trigger an export get no
+        # running thread, which avoids __del__-time hangs when MainWindow is held
+        # in a local variable (no closeEvent fires, so Python GC would destroy the
+        # QThread while still running).
+        self._export_worker = ExportWorker(self._svc.run_export)
+        self._export_thread = QThread()
+        # moveToThread before signal wiring: AutoConnection evaluates thread
+        # affinity at emit time, so the worker must already live on its thread
+        # before any signal is connected.
+        self._export_worker.moveToThread(self._export_thread)
+        self._start_export_requested.connect(self._export_worker.start_export)
+        self._export_worker.progress_updated.connect(self.status_widget.on_progress_updated)
+        self._export_worker.log_message.connect(self.status_widget.append_log_line)
+        self._export_worker.finished.connect(self._on_export_finished)
+        self._export_worker.failed.connect(self._on_export_failed)
+        self._export_worker.cancelled.connect(self._on_export_cancelled)
 
         self._build_ui()
         self._restore_settings(initial_lang)
@@ -151,12 +171,13 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         self.auth_widget.stop_running_threads()
         self.user_search_widget.stop_running_threads()
-        if self._export_thread is not None and self._export_thread.isRunning():
+        if self._export_active:
             if not self._confirm_close_during_export():
                 event.ignore()
                 return
             if self._cancel_event is not None:
                 self._cancel_event.set()
+        if self._export_thread.isRunning():
             self._export_thread.quit()
             if not self._export_thread.wait(2000):
                 logger.warning(
@@ -177,26 +198,13 @@ class MainWindow(QMainWindow):
     def _on_export_clicked(self) -> None:
         self.status_widget.stop_progress_display()  # reset any previous run
         config = self._build_config()
-        cancel_event = threading.Event()
-        self._cancel_event = cancel_event
-        worker = ExportWorker(config, self._svc.run_export, cancel_event)
-        thread = QThread()
-        worker.moveToThread(thread)
-        worker.progress_updated.connect(self.status_widget.on_progress_updated)
-        worker.log_message.connect(self.status_widget.append_log_line)
-        worker.finished.connect(self._on_export_finished)
-        worker.failed.connect(self._on_export_failed)
-        worker.cancelled.connect(self._on_export_cancelled)
-        worker.finished.connect(self._on_export_worker_done)
-        worker.failed.connect(self._on_export_worker_done)
-        worker.cancelled.connect(self._on_export_worker_done)
-        thread.finished.connect(self._clear_export_refs)
-        thread.started.connect(worker.run)
-        self._export_thread = thread
-        self._export_worker = worker
+        self._cancel_event = threading.Event()
+        self._export_active = True
         self.status_widget.export_btn.setEnabled(False)
         self.status_widget.start_progress_display()
-        thread.start()
+        if not self._export_thread.isRunning():
+            self._export_thread.start()
+        self._start_export_requested.emit(config, self._cancel_event)
 
     def _build_config(self) -> ExportConfig:
         config = self.auth_widget.get_export_config_partial()
@@ -213,6 +221,7 @@ class MainWindow(QMainWindow):
         return config
 
     def _on_export_finished(self, output_path: str) -> None:
+        self._export_active = False
         self._last_output_path = output_path if output_path else None
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
@@ -227,29 +236,11 @@ class MainWindow(QMainWindow):
         self._update_export_btn()
 
     def _on_export_failed(self, message: str) -> None:
+        self._export_active = False
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
         self.status_widget.append_log_line(f"Error: {message}")  # i18n: status.log.error
         self._update_export_btn()
-
-    def _clear_export_refs(self) -> None:
-        # NOTE: wait() reduces but does not eliminate the OS-thread-cleanup race;
-        #       Qt docs note that finished() may fire before thread-local destructors
-        #       complete. Full elimination requires a different worker-lifecycle
-        #       pattern (see commit message for context). Remove this wait() only
-        #       after that refactor.
-        if self._export_thread is not None and not self._export_thread.wait(2000):
-            logger.warning(
-                "Export thread did not stop within timeout: %r",
-                self._export_thread,
-            )
-        self._export_thread = None
-        self._export_worker = None
-        self._cancel_event = None
-
-    def _on_export_worker_done(self) -> None:
-        if self._export_thread is not None:
-            self._export_thread.quit()
 
     def _on_cancel_clicked(self) -> None:
         if self._cancel_event is not None:
@@ -258,6 +249,7 @@ class MainWindow(QMainWindow):
         self.status_widget.append_log_line("Abbruch wird durchgefuehrt...")  # i18n: status.log.cancelling
 
     def _on_export_cancelled(self) -> None:
+        self._export_active = False
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
         self.status_widget.append_log_line("Export abgebrochen.")  # i18n: status.log.cancelled
