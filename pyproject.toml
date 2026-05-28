@@ -19,8 +19,8 @@ classifiers = [
     "Operating System :: Microsoft :: Windows :: Windows 11",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Office/Business",
     "Topic :: Utilities",
 ]
@@ -64,7 +64,7 @@ packages = ["src/jwe"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 src = ["src"]
 
 [tool.ruff.lint]
@@ -88,7 +88,7 @@ ignore = [
 "src/jwe/gui/*" = ["N802"]  # Qt requires camelCase override names (closeEvent, etc.)
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 files = ["src"]
 mypy_path = "src"

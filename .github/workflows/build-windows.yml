@@ -47,8 +47,13 @@ jobs:
       - name: Type check
         run: mypy
 
-      - name: Test
+      - name: Test (Windows - full)
+        if: runner.os == 'Windows'
         run: pytest
+
+      - name: Test (Linux - CLI/backend only)
+        if: runner.os == 'Linux'
+        run: pytest --ignore=tests/gui
 
   build-windows:
     name: Build Windows binaries
