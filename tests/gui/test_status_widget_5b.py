@@ -12,6 +12,7 @@ def widget(qtbot) -> StatusWidget:
     w = StatusWidget()
     qtbot.addWidget(w)
     w.show()
+    qtbot.waitExposed(w)
     return w
 
 

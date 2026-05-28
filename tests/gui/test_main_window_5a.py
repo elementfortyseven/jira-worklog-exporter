@@ -168,6 +168,7 @@ class TestExportBtnReenabledAfterFinished:
     ) -> None:
         mw = make_main_window(service=mock_svc)
         mw.show()
+        qtbot.waitExposed(mw)
         _make_all_valid(mw, tmp_path)
 
         qtbot.mouseClick(mw.status_widget.export_btn, Qt.MouseButton.LeftButton)

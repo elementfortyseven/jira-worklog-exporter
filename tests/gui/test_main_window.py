@@ -20,6 +20,7 @@ class TestMainWindowInstantiates:
 
     def test_shows_without_error(self, qtbot, main_window: MainWindow) -> None:
         main_window.show()
+        qtbot.waitExposed(main_window)
         assert main_window.isVisible()
 
     def test_has_all_five_section_widgets(self, main_window: MainWindow) -> None:
