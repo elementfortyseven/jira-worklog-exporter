@@ -48,6 +48,7 @@ class MainWindow(QMainWindow):
         _settings: QSettings | None = None,
         service: Any = None,
     ) -> None:
+        print("[DIAG] MainWindow.__init__ start", flush=True)
         super().__init__()
         self._settings: QSettings = (
             _settings or QSettings(_SETTINGS_ORG, _SETTINGS_APP)
@@ -82,6 +83,7 @@ class MainWindow(QMainWindow):
         # affinity at emit time, so the worker must already live on its thread
         # before any signal is connected.
         self._export_worker.moveToThread(self._export_thread)
+        print("[DIAG] MainWindow.__init__ worker moved to thread", flush=True)
         self._start_export_requested.connect(self._export_worker.start_export)
         self._export_worker.progress_updated.connect(self.status_widget.on_progress_updated)
         self._export_worker.log_message.connect(self.status_widget.append_log_line)
@@ -90,9 +92,12 @@ class MainWindow(QMainWindow):
         self._export_worker.cancelled.connect(self._on_export_cancelled)
 
         self._build_ui()
+        print("[DIAG] MainWindow.__init__ _build_ui done", flush=True)
         self._restore_settings(initial_lang)
+        print("[DIAG] MainWindow.__init__ _restore_settings done", flush=True)
         self._update_export_btn()
         self.status_widget.export_btn.clicked.connect(self._on_export_clicked)
+        print("[DIAG] MainWindow.__init__ end", flush=True)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -169,8 +174,12 @@ class MainWindow(QMainWindow):
         self.output_widget.load_settings(self._settings)
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        print("[DIAG] closeEvent start", flush=True)
         self.auth_widget.stop_running_threads()
+        print("[DIAG] closeEvent: auth stop done", flush=True)
         self.user_search_widget.stop_running_threads()
+        print("[DIAG] closeEvent: user_search stop done", flush=True)
+        print(f"[DIAG] closeEvent: export_thread.isRunning()={self._export_thread.isRunning()}", flush=True)
         if self._export_active:
             if not self._confirm_close_during_export():
                 event.ignore()
@@ -178,18 +187,18 @@ class MainWindow(QMainWindow):
             if self._cancel_event is not None:
                 self._cancel_event.set()
         if self._export_thread.isRunning():
+            print("[DIAG] closeEvent: before thread.quit()", flush=True)
             self._export_thread.quit()
-            if not self._export_thread.wait(2000):
-                logger.warning(
-                    "Export thread did not stop within timeout: %r",
-                    self._export_thread,
-                )
+            print("[DIAG] closeEvent: before thread.wait()", flush=True)
+            waited = self._export_thread.wait(2000)
+            print(f"[DIAG] closeEvent: thread.wait() returned {waited}", flush=True)
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("lang", self._lang)
         self.auth_widget.save_settings(self._settings)
         self.filter_widget.save_settings(self._settings)
         self.output_widget.save_settings(self._settings)
         super().closeEvent(event)
+        print("[DIAG] closeEvent end (super called)", flush=True)
 
     # ------------------------------------------------------------------
     # Export lifecycle

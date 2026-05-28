@@ -111,6 +111,7 @@ addopts = [
     "--cov-report=term-missing",
 ]
 timeout = 10
+timeout_method = "thread"
 # Qt offscreen platform for CI environments without
 # display. Works on Windows/macOS/Linux uniformly.
 qt_qpa_platform = "offscreen"
