@@ -79,7 +79,7 @@ jobs:
         run: pyinstaller --onefile --console --name jwe-cli --paths src src/jwe/__main__.py
 
       - name: Build GUI
-        run: pyinstaller --onefile --windowed --name jwe-gui --paths src src/jwe/__main__.py
+        run: pyinstaller --onefile --windowed --name jwe-gui --paths src src/jwe/gui_main.py
 
       - name: Compute SHA-256
         shell: pwsh

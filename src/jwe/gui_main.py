@@ -16,3 +16,7 @@ def main(lang: str | None = None) -> int:
     window = MainWindow(initial_lang=lang)
     window.show()
     return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

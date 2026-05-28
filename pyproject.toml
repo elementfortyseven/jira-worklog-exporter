@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jwe"
-version = "0.1.0"
+version = "1.0.0"
 description = "Jira Cloud Worklog Exporter — CSV export of user worklogs from a Jira Cloud site"
 readme = "README.md"
 license = { text = "MIT" }
