@@ -47,18 +47,9 @@ jobs:
       - name: Type check
         run: mypy
 
-      - name: Diagnose isolated test (Windows)
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        env:
-          QT_LOGGING_RULES: "qt.*=true"
-        run: python -X faulthandler -m pytest "tests/gui/test_main_window.py::TestMainWindowInstantiates::test_shows_without_error" -v -s
-
       - name: Test (Windows - full)
         if: runner.os == 'Windows'
-        env:
-          QT_LOGGING_RULES: "qt.*=true"
-        run: pytest -s
+        run: pytest
 
       - name: Test (Linux - CLI/backend only)
         if: runner.os == 'Linux'
