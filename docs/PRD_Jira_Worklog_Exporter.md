@@ -457,7 +457,7 @@ Exit-Codes:
 
 ## 14. Build & Distribution
 
-- **Repo-Host:** GitHub (privat oder öffentlich, nach Wahl).
+- **Repo-Host:** GitHub, public (seit v1.0.0).
 - **CI:** `.github/workflows/build-windows.yml` mit Trigger auf Tags `v*`.
   - Schritte: Setup Python 3.12 → `pip install -e .[build]` → `pyinstaller jwe-gui.spec` → `pyinstaller jwe-cli.spec` → SHA-256-Manifest → Upload zu GitHub Release.
 - **Artefakte:** `JiraWorklogExporter-GUI.exe`, `jwe-cli.exe`, `SHA256SUMS.txt`.

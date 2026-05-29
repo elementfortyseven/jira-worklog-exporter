@@ -7,7 +7,7 @@ This file is the primary context for Claude Code working on this repository.
 
 ## TL;DR
 
-Python 3.11+ tool that exports Jira Cloud worklogs of selected users in a date range to CSV. Two binaries: a CLI (`jwe-cli`) and a PySide6 GUI (`jwe-gui`). Built for Windows via PyInstaller in GitHub Actions. The unusual part is the **dual authentication architecture** — see §3 below.
+Python 3.12+ tool that exports Jira Cloud worklogs of selected users in a date range to CSV. Two binaries: a CLI (`jwe-cli`) and a PySide6 GUI (`jwe-gui`). Built for Windows via PyInstaller in GitHub Actions. The unusual part is the **dual authentication architecture** — see §3 below.
 
 ---
 
@@ -82,7 +82,7 @@ One Etappe = one commit = one fresh Claude Code session. At Etappe completion up
 
 ## 1. Project state
 
-**Phase:** v0 / skeleton. Architectural foundations are implemented; business logic is stubbed.
+**Phase:** v1.0.0 released. CLI, service layer, and GUI core functionality are complete and have been distributed as Windows executables. GUI Etappe 6 (full i18n marker resolution) is planned for v1.1.0 together with UI polish (inline field validation, QSS styling, min window size). The hardcoded UI strings with # i18n: markers do not block the v1.0.0 release.
 
 | Module | State | Notes |
 |---|---|---|
@@ -100,7 +100,7 @@ One Etappe = one commit = one fresh Claude Code session. At Etappe completion up
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
 | `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
-| `jwe.gui` | 🟡 etappe 5b (Cancel + result buttons) | ExportWorker gains cancelled signal (_terminal_emitted flag); StatusWidget gains cancel_btn + _result_row with full lifecycle; MainWindow: _on_cancel_clicked, _on_export_cancelled, _confirm_close_during_export, open-CSV/folder handlers; closeEvent shows confirm dialog during active export; run_export yields ExportProgress on cancel, no ExportResult; 34 new tests (258 total GUI); 520/520 green -- Pattern C refactor (persistent worker thread): ExportWorker.run() replaced by start_export(config, cancel_event) slot; MainWindow creates _export_thread + _export_worker once in __init__ with lazy start; removes the structural cause of the ~5% GC-race crash; test suite stabilised via make_main_window factory fixture |
+| `jwe.gui` | ✅ etappen 1-5b complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search and shuttle lists, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker via Pattern C (persistent worker thread); closeEvent confirmation; QSettings round-trip for all persistent fields. 520+ tests green across all GUI test modules. Etappe 6 (i18n marker resolution) planned for v1.1.0. |
 | `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
@@ -319,7 +319,6 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 - PRD: `docs/PRD_Jira_Worklog_Exporter.md`
 - Atlassian REST API v3: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
 - Service Accounts: https://support.atlassian.com/user-management/docs/manage-api-tokens-for-service-accounts/
-- Sister project (similar auth/build pattern): `jira-lead-exporter`
 
 ---
 
@@ -353,6 +352,8 @@ self.label.setText("Connection test")  # i18n: auth.btn.test_connection
 ```
 
 This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than a hunt through the codebase.
+
+v1.0.0 released after Etappe 5b. Etappe 6 below is planned for v1.1.0 together with broader UX polish based on real-world feedback from v1.0 users.
 
 ---
 
@@ -474,7 +475,7 @@ This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than 
 
 ---
 
-### Etappe 6 — i18n vollständig & UX-Politur
+### Etappe 6 — i18n vollständig & UX-Politur (geplant für v1.1.0)
 
 **Goal:** Fully internationalised, production-ready GUI.
 
