@@ -73,6 +73,8 @@ test:linux:3.13:
 # Uses Chocolatey to install Python (no Docker executor on Windows runners).
 # Chocolatey ships separate packages per Python minor version: python312,
 # python313. The generic "python" package does not support --version pinning.
+# After install, refresh PATH via Chocolatey's PowerShell profile module,
+# since the cmd-based refreshenv does not work in PowerShell sessions.
 # Note: Windows runners on GitLab.com are in beta; longer provisioning time
 # (~5 min per job) is expected.
 # ---------------------------------------------------------------------------
@@ -84,7 +86,8 @@ test:linux:3.13:
   before_script:
     # PowerShell is the default shell on Windows runners
     - choco install $env:PYTHON_PACKAGE -y --no-progress
-    - refreshenv
+    - Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+    - Update-SessionEnvironment
     - python --version
     - python -m pip install --upgrade pip
     - pip install -e ".[dev]"
