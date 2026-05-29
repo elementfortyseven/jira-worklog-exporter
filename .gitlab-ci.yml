@@ -29,7 +29,7 @@ stages:
 
 lint:
   stage: lint
-  image: python:3.12-slim
+  image: python:3.12
   tags:
     - saas-linux-small-amd64
   before_script:
@@ -42,6 +42,8 @@ lint:
 # Linux test matrix: Python 3.12 and 3.13
 # Mirrors GitHub Actions Linux jobs.
 # GUI tests excluded on Linux (GUI is Windows-only per project policy).
+# Using non-slim Debian images to ensure PySide6 system dependencies
+# (libglib2.0-0 etc.) are present out of the box.
 # ---------------------------------------------------------------------------
 
 .test-linux:
@@ -60,15 +62,17 @@ lint:
 
 test:linux:3.12:
   extends: .test-linux
-  image: python:3.12-slim
+  image: python:3.12
 
 test:linux:3.13:
   extends: .test-linux
-  image: python:3.13-slim
+  image: python:3.13
 
 # ---------------------------------------------------------------------------
 # Windows test matrix: Python 3.12 and 3.13
 # Uses Chocolatey to install Python (no Docker executor on Windows runners).
+# Chocolatey ships separate packages per Python minor version: python312,
+# python313. The generic "python" package does not support --version pinning.
 # Note: Windows runners on GitLab.com are in beta; longer provisioning time
 # (~5 min per job) is expected.
 # ---------------------------------------------------------------------------
@@ -79,7 +83,7 @@ test:linux:3.13:
     - saas-windows-medium-amd64
   before_script:
     # PowerShell is the default shell on Windows runners
-    - choco install python --version=$env:PYTHON_VERSION -y --no-progress
+    - choco install $env:PYTHON_PACKAGE -y --no-progress
     - refreshenv
     - python --version
     - python -m pip install --upgrade pip
@@ -91,9 +95,9 @@ test:linux:3.13:
 test:windows:3.12:
   extends: .test-windows
   variables:
-    PYTHON_VERSION: "3.12"
+    PYTHON_PACKAGE: "python312"
 
 test:windows:3.13:
   extends: .test-windows
   variables:
-    PYTHON_VERSION: "3.13"
+    PYTHON_PACKAGE: "python313"
