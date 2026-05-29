@@ -13,24 +13,10 @@ Python 3.12+ tool that exports Jira Cloud worklogs of selected users in a date r
 
 ## 0. Operating instructions — read first
 
-### Shell: PowerShell, not Bash
-
-Windows 11 host; PowerShell is the default shell. Bash syntax is not available. If a Bash construct comes to mind, stop and rewrite.
-
-| Do NOT write | Write instead |
-|---|---|
-| `cmd1 && cmd2` | `cmd1; cmd2` |
-| `cmd1 \|\| fallback` | `if (-not $?) { fallback }` |
-| `cat <<'EOF' ... EOF` | `@"..."@` (PowerShell here-string) |
-| `export VAR=value` | `$env:VAR = "value"` |
-| `cat file \| grep pat` | `Get-Content file \| Select-String pat` |
-
-### Git commit messages
-
-- **ASCII only** — no `§`, `->` not `→`, no `–`, no `**`. PowerShell quoting breaks on non-ASCII; commits must be readable in every console.
-- **Multiple `-m` flags** for multi-line messages; no embedded newlines inside a single `-m` string.
-- **No `Co-Authored-By` trailer** unless explicitly requested.
-- **Long commit messages** — when a message requires more than five `-m` flags or exceeds roughly 800 bytes total, write the message to `.scratch/<descriptive-name>.txt` and commit with `git commit -F .scratch/<descriptive-name>.txt`. The `.scratch/` directory is excluded via `.gitignore`; the file may be deleted after a successful commit or left in place.
+> **Note:** Some operating instructions are personal and live in
+> `CLAUDE.local.md` (gitignored). The entries below are
+> project-specific and apply to any contributor working on this
+> codebase.
 
 ### Local verification must match CI scope
 
@@ -62,10 +48,6 @@ Pre-existing lint, type, or other errors in files outside the current commit's s
 - Leave in place with an **explicit decision** recorded in the commit message or chat.
 
 Feature work and pre-existing bug fixes are never mixed in a single commit.
-
-### Memory discipline
-
-Memory entries are reserved for lasting lessons that remain relevant across multiple projects or sessions: behavioral patterns, user preferences, recurring mistakes. Session handovers — summaries of in-progress work to be picked up in the next session — belong in chat output, not in memory. Writing a handover to memory pollutes the index and ages out of relevance immediately.
 
 ### GUI Etappen workflow
 

@@ -64,3 +64,6 @@ e2e_smoke.py
 
 # Scratch / probe scripts (never commit)
 .scratch/
+
+# Local Claude Code instructions (personal, not shared)
+CLAUDE.local.md
