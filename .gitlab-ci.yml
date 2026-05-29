@@ -24,6 +24,7 @@ stages:
 
 # ---------------------------------------------------------------------------
 # Lint job: Linux, fast, runs once (not in matrix)
+# Mirrors GitHub workflow: ruff check only, no format check.
 # ---------------------------------------------------------------------------
 
 lint:
@@ -36,7 +37,6 @@ lint:
     - pip install -e ".[dev]"
   script:
     - ruff check .
-    - ruff format --check .
 
 # ---------------------------------------------------------------------------
 # Linux test matrix: Python 3.12 and 3.13
