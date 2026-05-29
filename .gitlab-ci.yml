@@ -1,0 +1,99 @@
+# GitLab CI/CD for jira-worklog-exporter
+#
+# Stufe 1: test matrix only (no build, no release artefacts yet).
+# Linux 3.12/3.13 and Windows 3.12/3.13, mirroring the GitHub Actions matrix.
+#
+# Triggered on:
+# - pushes to main branch
+# - tag pushes matching v*
+# Feature branches do not trigger to conserve free-tier compute minutes.
+#
+# References:
+# - https://docs.gitlab.com/ci/runners/hosted_runners/linux/
+# - https://docs.gitlab.com/ci/runners/hosted_runners/windows/
+# - Free tier: 400 compute minutes/month, no OS multiplier (2026)
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+
+stages:
+  - lint
+  - test
+
+# ---------------------------------------------------------------------------
+# Lint job: Linux, fast, runs once (not in matrix)
+# ---------------------------------------------------------------------------
+
+lint:
+  stage: lint
+  image: python:3.12-slim
+  tags:
+    - saas-linux-small-amd64
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -e ".[dev]"
+  script:
+    - ruff check .
+    - ruff format --check .
+
+# ---------------------------------------------------------------------------
+# Linux test matrix: Python 3.12 and 3.13
+# Mirrors GitHub Actions Linux jobs.
+# GUI tests excluded on Linux (GUI is Windows-only per project policy).
+# ---------------------------------------------------------------------------
+
+.test-linux:
+  stage: test
+  tags:
+    - saas-linux-small-amd64
+  before_script:
+    # System libraries required by PySide6 (mirrors GitHub workflow)
+    - apt-get update -qq
+    - apt-get install -y -qq libegl1 libxkbcommon0 libxkbcommon-x11-0 libdbus-1-3 libxcb-cursor0 libgl1
+    - python -m pip install --upgrade pip
+    - pip install -e ".[dev]"
+  script:
+    - mypy
+    - pytest --ignore=tests/gui
+
+test:linux:3.12:
+  extends: .test-linux
+  image: python:3.12-slim
+
+test:linux:3.13:
+  extends: .test-linux
+  image: python:3.13-slim
+
+# ---------------------------------------------------------------------------
+# Windows test matrix: Python 3.12 and 3.13
+# Uses Chocolatey to install Python (no Docker executor on Windows runners).
+# Note: Windows runners on GitLab.com are in beta; longer provisioning time
+# (~5 min per job) is expected.
+# ---------------------------------------------------------------------------
+
+.test-windows:
+  stage: test
+  tags:
+    - saas-windows-medium-amd64
+  before_script:
+    # PowerShell is the default shell on Windows runners
+    - choco install python --version=$env:PYTHON_VERSION -y --no-progress
+    - refreshenv
+    - python --version
+    - python -m pip install --upgrade pip
+    - pip install -e ".[dev]"
+  script:
+    - mypy
+    - pytest
+
+test:windows:3.12:
+  extends: .test-windows
+  variables:
+    PYTHON_VERSION: "3.12"
+
+test:windows:3.13:
+  extends: .test-windows
+  variables:
+    PYTHON_VERSION: "3.13"
