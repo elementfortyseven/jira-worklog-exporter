@@ -66,7 +66,7 @@ One Etappe = one commit = one fresh Claude Code session. At Etappe completion up
 
 **Phase:** v1.0.0 released. CLI, service layer, and GUI core functionality are complete and have been distributed as Windows executables. GUI Etappe 6 (full i18n marker resolution) is planned for v1.1.0 together with UI polish (inline field validation, QSS styling, min window size). The hardcoded UI strings with # i18n: markers do not block the v1.0.0 release.
 
-**CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. GitLab CI currently has 3 known test failures on Windows runners involving `qtbot.mouseClick` on `QRadioButton`, tracked as JWE-10; these do not block releases since GitHub remains the gating CI. The mirror push to GitLab is manual (never from Claude Code).
+**CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. The mirror push to GitLab is manual (never from Claude Code).
 
 | Module | State | Notes |
 |---|---|---|
@@ -120,24 +120,6 @@ pyinstaller jwe-gui.spec
 ```
 
 `.spec` files for PyInstaller are not yet generated — create them on first build with `pyinstaller --onefile --name jwe-cli src/jwe/__main__.py` and edit afterward.
-
-#### Troubleshooting: git push from Claude Code fails with publickey error
-
-Symptom: `ssh -T git@github.com` succeeds from any shell, but `git push`
-fails with "Permission denied (publickey)" specifically when invoked
-from Claude Code's subshell.
-
-Cause: Git for Windows ships its own bundled `ssh.exe` (under the Git
-install's `usr/bin/`), which Git invokes for SSH operations regardless
-of `PATH`. The bundled SSH does not communicate with the Windows
-OpenSSH agent, where your loaded key lives.
-
-Fix: point Git at the Windows OpenSSH binary explicitly:
-
-    git config --global core.sshCommand "C:/Windows/System32/OpenSSH/ssh.exe"
-
-This is a one-time machine-level setting and applies to all Git repos
-on the host.
 
 ---
 
@@ -286,7 +268,7 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 
 ### Headless Windows considerations for GUI tests
 
-GitLab Windows runners use the winrm executor (non-interactive session). `qtbot.mouseClick` on `QRadioButton` is unreliable in this environment because mouse events depend on the widget being exposed and the session being interactive. `QPushButton` clicks are more tolerant and work on both GitHub and GitLab. **Convention:** for radio button state changes in tests, prefer `radio.click()` or `radio.setChecked(True)` over `qtbot.mouseClick`. Where `qtbot.mouseClick` is already in use on a radio button, treat it as a robustness debt (tracked as JWE-10).
+GitLab Windows runners use the winrm executor (non-interactive session). `qtbot.mouseClick` on `QRadioButton` is unreliable in this environment because mouse events depend on the widget being exposed and the session being interactive. `QPushButton` clicks are more tolerant and work on both GitHub and GitLab. **Convention:** for radio button state changes in tests, prefer `radio.click()` or `radio.setChecked(True)` over `qtbot.mouseClick`.
 
 ---
 
