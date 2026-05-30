@@ -1,68 +1,68 @@
 # Jira Cloud Worklog Exporter (`jwe`)
 
-CSV-Export von Worklogs aus einer Jira-Cloud-Site, ausgewählt nach Benutzern, Zeitraum und optional Projekten. Als CLI und PySide6-GUI verfügbar, paketiert als eigenständige Windows-Executable (kein Python erforderlich).
+CSV export of worklogs from a Jira Cloud site, filtered by users, date range, and optionally by projects. Available as CLI and PySide6 GUI, packaged as a standalone Windows executable (no Python required).
 
 [![Release](https://img.shields.io/github/v/release/elementfortyseven/jira-worklog-exporter)](https://github.com/elementfortyseven/jira-worklog-exporter/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-## Schnellstart (Windows)
+## Quick start (Windows)
 
-1. Unter [Releases](https://github.com/elementfortyseven/jira-worklog-exporter/releases/latest) die neueste Version herunterladen:
-   - `jwe-gui.exe` — grafische Oberfläche (empfohlen)
-   - `jwe-cli.exe` — Kommandozeile
-   - `SHA256SUMS.txt` — Prüfsummen zur Verifikation
-2. `jwe-gui.exe` per Doppelklick starten oder `jwe-cli.exe` aus PowerShell aufrufen.
+1. Download the latest release from [Releases](https://github.com/elementfortyseven/jira-worklog-exporter/releases/latest):
+   - `jwe-gui.exe` — graphical interface (recommended)
+   - `jwe-cli.exe` — command line
+   - `SHA256SUMS.txt` — checksums for verification
+2. Double-click `jwe-gui.exe` or invoke `jwe-cli.exe` from PowerShell.
 
-**Hinweis zu SmartScreen:** v1.0.0 ist nicht code-signiert. Beim ersten Start zeigt Windows eine SmartScreen-Warnung. Klicke auf *Weitere Informationen* → *Trotzdem ausführen*.
+**Note on SmartScreen:** v1.0.0 is not code-signed. On first launch, Windows will display a SmartScreen warning. Click *More info* → *Run anyway*.
 
-**Prüfsumme verifizieren (optional):**
+**Verify checksum (optional):**
 
 ```powershell
 (Get-FileHash .\jwe-gui.exe -Algorithm SHA256).Hash
-# Mit dem Wert in SHA256SUMS.txt vergleichen
+# Compare the value with SHA256SUMS.txt
 ```
 
 ---
 
-## Was die Anwendung tut
+## What the application does
 
-Pro Lauf werden alle Worklogs der ausgewählten Benutzer im angegebenen Datumsbereich (optional auf bestimmte Projekte eingegrenzt) in eine CSV-Datei exportiert. Standardspalten: Projekt, Vorgangsschlüssel, Summary, Benutzer, Time Spent, Work Description. Die Datei wird streamend in UTF-8 mit BOM geschrieben — auch große Exports mit über 100.000 Zeilen funktionieren ohne Speicherprobleme.
+Per run, all worklogs of the selected users within the given date range (optionally restricted to specific projects) are exported to a CSV file. Default columns: project, issue key, summary, user, time spent, work description. The file is streamed in UTF-8 with BOM — even large exports with over 100,000 rows work without memory issues.
 
-Drei Spaltenprofile stehen zur Verfügung: `minimal` (6 Spalten), `standard` (10 Spalten, Standardwert), `full` (14 Spalten — zusätzlich Account-ID, Worklog-ID, Erstellungs- und Änderungsdatum).
-
----
-
-## Authentifizierung
-
-Die Anwendung unterstützt zwei Authentifizierungsmodi.
-
-**Service Account (empfohlen für regelmäßige Exports)**
-Ein dedizierter, nicht-personalisierter Account mit eigenem API-Token. Vorteile: kein Token-Rotieren bei Personalwechsel, klare Audit-Trails, read-only Scopes. Setup erfordert Org-Admin-Rechte — siehe [PRD Anhang A](./docs/PRD_Jira_Worklog_Exporter.md#anhang-a-setup-anleitung-für-den-org-admin-service-account-modus).
-
-**User Token (für persönliche Nutzung)**
-Ein API-Token, das an dein eigenes Atlassian-Konto gebunden ist. Schneller einzurichten, aber die Exports laufen unter deiner Identität und enden, wenn dein Konto deaktiviert wird.
-
-**Read-only Scopes** in beiden Modi: `read:jira-work`, `read:jira-user` (klassisch) oder die granularen Äquivalente.
+Three column profiles are available: `minimal` (6 columns), `standard` (10 columns, default), `full` (14 columns — additionally account ID, worklog ID, creation and update dates).
 
 ---
 
-## GUI-Nutzung
+## Authentication
 
-`jwe-gui.exe` öffnet ein Fenster mit fünf Abschnitten:
+The application supports two authentication modes.
 
-1. **Authentifizierung** — Modus wählen (Service Account oder User Token), Zugangsdaten eingeben, Verbindung testen. Token kann optional im Windows Credential Manager gespeichert werden.
-2. **Benutzer suchen** — Suchfeld zum Finden von Atlassian-Accounts; Auswahl per Doppelklick oder Buttons in die "ausgewählt"-Liste übernehmen.
-3. **Filter** — Zeitraum (Von/Bis) und optional Projektschlüssel (z. B. `KAN, INFRA`).
-4. **Ausgabe** — Zielverzeichnis, CSV-Trennzeichen, Spaltenprofil, API-Version.
-5. **Status & Export** — Export starten, Fortschritt anzeigen, abbrechen, Ergebnisdatei direkt öffnen.
+**Service Account (recommended for regular exports)**
+A dedicated, non-personal account with its own API token. Advantages: no token rotation when staff changes, clear audit trails, read-only scopes. Setup requires org admin rights — see [PRD Appendix A](./docs/PRD_Jira_Worklog_Exporter.md).
 
-Die GUI ist in Deutsch und Englisch verfügbar (Umschaltung im Menü).
+**User Token (for personal use)**
+An API token bound to your own Atlassian account. Faster to set up, but exports run under your identity and stop working when your account is deactivated.
+
+**Read-only scopes** in both modes: `read:jira-work`, `read:jira-user` (classic) or the granular equivalents.
 
 ---
 
-## CLI-Nutzung
+## GUI usage
+
+`jwe-gui.exe` opens a window with five sections:
+
+1. **Authentication** — choose mode (Service Account or User Token), enter credentials, test connection. Token can optionally be stored in the Windows Credential Manager.
+2. **User search** — search field for finding Atlassian accounts; add to the "selected" list by double-click or buttons.
+3. **Filter** — date range (from/to) and optional project keys (e.g. `KAN, INFRA`).
+4. **Output** — target directory, CSV delimiter, column profile, API version.
+5. **Status & Export** — start the export, view progress, cancel, open the result file directly.
+
+The GUI is available in German and English (switchable in the menu).
+
+---
+
+## CLI usage
 
 ```powershell
 # Service Account
@@ -85,33 +85,33 @@ jwe-cli export `
   --users 5b10a2844c... `
   --from 2026-04-01 --to 2026-04-30
 
-# Cloud-ID für eine Site ermitteln
+# Discover the cloud ID for a site
 jwe-cli discover-cloud-id https://acme.atlassian.net
 
-# GUI aus der CLI starten
+# Launch the GUI from the CLI
 jwe-cli gui
 
-# Vollständige Hilfe
+# Full help
 jwe-cli --help
 jwe-cli export --help
 ```
 
-**Mehrere Benutzer:** `--users` kommasepariert (`5b10a2..., 712020:...`) oder per Datei mit `--users-file path/to/users.txt` (eine Account-ID pro Zeile, `#` für Kommentare).
+**Multiple users:** `--users` comma-separated (`5b10a2..., 712020:...`) or via file with `--users-file path/to/users.txt` (one account ID per line, `#` for comments).
 
-**Exit-Codes:** `0` Erfolg, `1` Authentifizierung fehlgeschlagen, `2` Validierungsfehler, `3` API-/Verbindungsfehler, `4` durch Benutzer abgebrochen, `5` keine Berechtigung, `6` unerwarteter Fehler.
-
----
-
-## Plattform-Unterstützung
-
-- **Windows 11 (x64):** primäre Zielplattform, GUI und CLI getestet, fertige Executables.
-- **Linux / macOS:** CLI funktioniert (aus Quellcode), GUI nicht offiziell verifiziert. Installation siehe Abschnitt *Entwicklung*.
+**Exit codes:** `0` success, `1` authentication failed, `2` validation error, `3` API or connection error, `4` cancelled by user, `5` no permission, `6` unexpected error.
 
 ---
 
-## Entwicklung
+## Platform support
 
-Voraussetzung: Python 3.12 oder neuer.
+- **Windows 11 (x64):** primary target platform, GUI and CLI tested, prebuilt executables.
+- **Linux / macOS:** CLI works (from source), GUI not officially verified. Installation see *Development* section.
+
+---
+
+## Development
+
+Prerequisite: Python 3.12 or newer.
 
 ```powershell
 git clone https://github.com/elementfortyseven/jira-worklog-exporter
@@ -122,17 +122,17 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Für eigene Builds der Executables zusätzlich `pip install -e ".[dev,build]"` und siehe `.github/workflows/build-windows.yml` für die PyInstaller-Aufrufe.
+For your own builds of the executables, additionally `pip install -e ".[dev,build]"` and see `.github/workflows/build-windows.yml` for the PyInstaller invocations.
 
 ---
 
-## Dokumentation
+## Documentation
 
-- [Product Requirements Document](./docs/PRD_Jira_Worklog_Exporter.md) — vollständige Spezifikation, Anforderungen, Architektur, Setup-Anleitungen
-- [CLAUDE.md](./CLAUDE.md) — Entwicklerleitfaden, Modulübersicht, Operating Instructions
+- [Product Requirements Document](./docs/PRD_Jira_Worklog_Exporter.md) — full specification, requirements, architecture, setup guides
+- [CLAUDE.md](./CLAUDE.md) — developer guide, module overview, operating instructions
 
 ---
 
-## Lizenz
+## License
 
-MIT — siehe [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE).
