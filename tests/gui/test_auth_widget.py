@@ -65,16 +65,17 @@ class TestModeSwitch:
         assert auth_widget.stack.currentIndex() == 0
 
     def test_switch_to_user_token_changes_stack(
-        self, qtbot, auth_widget: AuthWidget
+        self, auth_widget: AuthWidget
     ) -> None:
-        qtbot.mouseClick(auth_widget.user_radio, Qt.MouseButton.LeftButton)
+        auth_widget.user_radio.click()
         assert auth_widget.stack.currentIndex() == 1
 
     def test_switch_back_to_sa_changes_stack(
-        self, qtbot, auth_widget: AuthWidget
+        self, auth_widget: AuthWidget
     ) -> None:
-        qtbot.mouseClick(auth_widget.user_radio, Qt.MouseButton.LeftButton)
-        qtbot.mouseClick(auth_widget.sa_radio, Qt.MouseButton.LeftButton)
+        auth_widget.user_radio.click()
+        assert auth_widget.stack.currentIndex() == 1
+        auth_widget.sa_radio.click()
         assert auth_widget.stack.currentIndex() == 0
 
 
@@ -469,7 +470,7 @@ class TestValidationChangedSignal:
 
     def test_emitted_on_mode_switch(self, qtbot, auth_widget: AuthWidget) -> None:
         with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
-            qtbot.mouseClick(auth_widget.user_radio, Qt.MouseButton.LeftButton)
+            auth_widget.user_radio.click()
 
 
 # ---------------------------------------------------------------------------
@@ -553,7 +554,7 @@ class TestConnectionVerifiedSignal:
         invalidated: list[None] = []
         auth_widget.connection_invalidated.connect(lambda: invalidated.append(None))
         _do_successful_test(qtbot, auth_widget, mock_svc)
-        qtbot.mouseClick(auth_widget.user_radio, Qt.MouseButton.LeftButton)
+        auth_widget.user_radio.click()
         assert len(invalidated) == 1
 
     # AV-8: _verified is False after connection_invalidated
