@@ -76,10 +76,10 @@ jobs:
           pip install -e ".[dev,build]"
 
       - name: Build CLI
-        run: pyinstaller --onefile --console --name jwe-cli --paths src src/jwe/__main__.py
+        run: pyinstaller --onefile --console --name jwe-cli --paths src --hidden-import keyring.backends.Windows src/jwe/__main__.py
 
       - name: Build GUI
-        run: pyinstaller --onefile --windowed --name jwe-gui --paths src src/jwe/gui_main.py
+        run: pyinstaller --onefile --windowed --name jwe-gui --paths src --hidden-import keyring.backends.Windows src/jwe/gui_main.py
 
       - name: Compute SHA-256
         shell: pwsh
