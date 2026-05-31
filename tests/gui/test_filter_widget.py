@@ -140,11 +140,11 @@ class TestIsValidProjectKeys:
 class TestValidationChangedSignal:
     def test_emitted_on_to_date_change(self, qtbot, widget: FilterWidget) -> None:
         with qtbot.waitSignal(widget.validation_changed, timeout=500):
-            widget.to_date.setDate(QDate(2026, 6, 30))
+            widget.to_date.setDate(QDate(2025, 3, 20))
 
     def test_emitted_on_from_date_change(self, qtbot, widget: FilterWidget) -> None:
         with qtbot.waitSignal(widget.validation_changed, timeout=500):
-            widget.from_date.setDate(QDate(2026, 6, 1))
+            widget.from_date.setDate(QDate(2025, 1, 15))
 
     def test_emitted_on_project_keys_change(self, qtbot, widget: FilterWidget) -> None:
         with qtbot.waitSignal(widget.validation_changed, timeout=500):
