@@ -40,6 +40,28 @@ When a framework bug or unexpected library behavior appears, follow this order �
 
 Do not skip steps or start at step 5.
 
+### Non-destructive diagnosis before reverting changes
+
+Before using `git stash` or any other destructive operation to verify whether a regression was introduced by current changes, exhaust non-destructive diagnostic steps first:
+
+1. Read the failing test code in full (not truncated output)
+2. Read the actual error message including stack trace at full depth (no `Select-Object` truncation)
+3. Check tool and dependency versions (`pip show`, `pip index versions`)
+4. Check git log timing - when did the test last pass, what changed since?
+5. Read the production code that the test exercises - is the test's assumption still valid?
+
+Only after these steps come up empty: consider stash-based verification. The stash approach is valid but should be the fallback, not the first instinct. In practice the non-destructive path often resolves the question by itself, because the actual failure mode reveals itself in the code or environment.
+
+### Coordinating direct-push and local sessions
+
+This project occasionally uses direct-push via GitHub API or MCP for doc-only changes (such as CLAUDE.md updates from the architectural reviewer). When this happens, the next local Claude Code session must:
+
+1. Pull from origin before reading any project files (`git fetch origin; git pull origin main`)
+2. Re-read CLAUDE.md if it changed in the pull
+3. Confirm HEAD matches origin/main before any further work
+
+Direct-push commits do not appear in a local working tree until pulled. Starting a session against a stale tree leads to inconsistent doc references and missed convention updates. The architectural reviewer is responsible for prompting the user to pull after each direct-push, before the next session opens.
+
 ### Scope discipline for lint and type errors
 
 Pre-existing lint, type, or other errors in files outside the current commit's scope are **reported, not silently fixed**. Resolution options:
@@ -324,6 +346,7 @@ Additionally, widgets that start QThreads lazily based on timer events (debounce
 - **Cross-platform builds:** Add `build-macos.yml` and `build-linux.yml` GitHub Actions workflows after the first GUI implementation. macOS requires Code Signing and Notarization; Linux is best packaged as AppImage. Initially acceptable without signing for internal distribution — document the bypass procedure for users.
 - **One-shot thread cleanup in auth.py:** `auth.py` lines ~345-346 still use `thread.finished.connect(worker.deleteLater)` + `thread.finished.connect(thread.deleteLater)`. This is a single-shot worker (not Pattern C), and the `deleteLater` chaining was identified as a crash trigger in the export worker (Commit 16e3af3). No crash has been observed here because these threads are short-lived and infrequent, but the pattern should be revisited and aligned with the safer approach used in the export worker. user_search.py was fixed to Pattern C in JWE-26; auth.py is tracked under JWE-6 for v1.1.
 - **cancel_event granularity in run_export:** The cancel_event check in `jwe/exporter.py` is tested once per issue, not once per worklog page. For issues with very large worklog counts (hundreds of pages), a single iteration can take several seconds, meaning `closeEvent`'s `thread.wait(2000)` may expire before the export actually stops. Resolution: check cancel_event inside the worklog pagination loop as well. Tracked under JWE-7 for v1.1.
+- **Date and time coincidence in tests:** A latent test bug surfaced on 2026-06-01 (commit 1f5cdf8): `TestValidationChangedSignal` in `test_filter_widget.py` hardcoded `QDate` values that coincided with `FilterWidget`'s current-month defaults on that specific date. `setDate` with the same value does not emit `dateChanged`. Fixed locally, but similar patterns may lurk elsewhere in the suite. Tracked under JWE-29 for v1.1.0. The convention for handling this will be added to §9 once the audit is complete.
 
 ---
 
