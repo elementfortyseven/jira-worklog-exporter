@@ -60,13 +60,25 @@ One Etappe = one commit = one fresh Claude Code session. At Etappe completion up
 3. Tests green + brief visual window description
 4. Single commit: code + tests + §1 update + §14 ✅
 
+### CLAUDE.md maintenance discipline
+
+This document is updated as part of every commit that materially changes the project state. If the commit scope does not include a doc update, a follow-up `docs:` commit lands immediately.
+
+Minimum scope for any update:
+
+- **§1 status table** if a module's state, test count, or CI infrastructure changed
+- **§13 backlog** if a known issue was resolved or a new one identified
+- **§14 Etappen** marked ✅ on completion (existing rule, see GUI Etappen workflow above)
+
+Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13, and §14 in a dedicated `docs:` commit if not already current.
+
 ---
 
 ## 1. Project state
 
-**Phase:** v1.0.0 released. CLI, service layer, and GUI core functionality are complete and have been distributed as Windows executables. GUI Etappe 6 (full i18n marker resolution) is planned for v1.1.0 together with UI polish (inline field validation, QSS styling, min window size). The hardcoded UI strings with # i18n: markers do not block the v1.0.0 release.
+**Phase:** v1.0.0 released. v1.0.1 patch in preparation: UserSearchWorker refactored to Pattern C (JWE-26, fixes crash on fast typing) and keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries). CLI, service layer, and GUI core functionality are complete. GUI Etappe 6 (full i18n marker resolution) is planned for v1.1.0 together with UI polish (inline field validation, QSS styling, min window size). The hardcoded UI strings with # i18n: markers do not block the v1.0.x releases.
 
-**CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. The mirror push to GitLab is manual (never from Claude Code).
+**CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. GitLab CI has been fully green since JWE-10 (QRadioButton click compatibility fix for the winrm executor). The mirror push to GitLab is manual (never from Claude Code).
 
 | Module | State | Notes |
 |---|---|---|
@@ -84,7 +96,7 @@ One Etappe = one commit = one fresh Claude Code session. At Etappe completion up
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
 | `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
-| `jwe.gui` | ✅ etappen 1-5b complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search and shuttle lists, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads); closeEvent confirmation; QSettings round-trip for all persistent fields. 520+ tests green across all GUI test modules. Etappe 6 (i18n marker resolution) planned for v1.1.0. UserSearchWorker refactored to Pattern C in JWE-26 (fixes crash on fast typing). |
+| `jwe.gui` | ✅ etappen 1-5b complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields. 544+ tests green across the suite. Etappe 6 (i18n marker resolution) planned for v1.1.0. |
 | `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
@@ -270,6 +282,12 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 
 GitLab Windows runners use the winrm executor (non-interactive session). `qtbot.mouseClick` on `QRadioButton` is unreliable in this environment because mouse events depend on the widget being exposed and the session being interactive. `QPushButton` clicks are more tolerant and work on both GitHub and GitLab. **Convention:** for radio button state changes in tests, prefer `radio.click()` or `radio.setChecked(True)` over `qtbot.mouseClick`.
 
+### Fixture cleanup discipline for QThread-bearing widgets
+
+GUI test fixtures that create widgets with persistent QThreads must be generator fixtures with explicit `w.close()` teardown. This triggers `closeEvent`, which stops all persistent threads cleanly. Without teardown, threads may outlive the test, leak into Python's cyclic GC scope, and crash the test session at interpreter shutdown with `QThread: Destroyed while thread '' is still running` (exit code 9). See JWE-26 commit message for the full diagnostic chain.
+
+Additionally, widgets that start QThreads lazily based on timer events (debounce timer, etc.) must stop those timers in `stop_running_threads()` to prevent a late-firing timer from starting a thread *after* fixture cleanup has run. The convention: `stop_running_threads()` stops timers first, then quits the thread.
+
 ---
 
 ## 10. Known traps (in priority order)
@@ -304,8 +322,8 @@ GitLab Windows runners use the winrm executor (non-interactive session). `qtbot.
 
 - **Output dir auto-create:** Currently `ExportConfig.validate()` raises if `output_dir` does not exist. For better UX, the default `./exports` should be auto-created on first run, while explicitly user-provided paths still raise (protects against typos). Pick this up during the GUI iteration since the file-picker will need consistent behavior.
 - **Cross-platform builds:** Add `build-macos.yml` and `build-linux.yml` GitHub Actions workflows after the first GUI implementation. macOS requires Code Signing and Notarization; Linux is best packaged as AppImage. Initially acceptable without signing for internal distribution — document the bypass procedure for users.
-- **One-shot thread cleanup in auth.py:** `auth.py` lines ~345-346 still use `thread.finished.connect(worker.deleteLater)` + `thread.finished.connect(thread.deleteLater)`. This is a single-shot worker (not Pattern C), and the `deleteLater` chaining was identified as a crash trigger in the export worker (Commit 16e3af3). No crash has been observed here because these threads are short-lived and infrequent, but the pattern should be revisited and aligned with the safer approach used in the export worker. (user_search.py was fixed to Pattern C in JWE-26.)
-- **cancel_event granularity in run_export:** The cancel_event check in `jwe/exporter.py` is tested once per issue, not once per worklog page. For issues with very large worklog counts (hundreds of pages), a single iteration can take several seconds, meaning `closeEvent`'s `thread.wait(2000)` may expire before the export actually stops. Resolution: check cancel_event inside the worklog pagination loop as well.
+- **One-shot thread cleanup in auth.py:** `auth.py` lines ~345-346 still use `thread.finished.connect(worker.deleteLater)` + `thread.finished.connect(thread.deleteLater)`. This is a single-shot worker (not Pattern C), and the `deleteLater` chaining was identified as a crash trigger in the export worker (Commit 16e3af3). No crash has been observed here because these threads are short-lived and infrequent, but the pattern should be revisited and aligned with the safer approach used in the export worker. user_search.py was fixed to Pattern C in JWE-26; auth.py is tracked under JWE-6 for v1.1.
+- **cancel_event granularity in run_export:** The cancel_event check in `jwe/exporter.py` is tested once per issue, not once per worklog page. For issues with very large worklog counts (hundreds of pages), a single iteration can take several seconds, meaning `closeEvent`'s `thread.wait(2000)` may expire before the export actually stops. Resolution: check cancel_event inside the worklog pagination loop as well. Tracked under JWE-7 for v1.1.
 
 ---
 
