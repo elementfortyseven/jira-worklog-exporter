@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
@@ -18,15 +19,18 @@ def isolated_settings(tmp_path: Path) -> QSettings:
 
 
 @pytest.fixture
-def main_window(qtbot, isolated_settings: QSettings) -> MainWindow:
+def main_window(qtbot, isolated_settings: QSettings) -> Generator[MainWindow, None, None]:
     """MainWindow with isolated settings, registered with qtbot for cleanup."""
     w = MainWindow(_settings=isolated_settings)
     qtbot.addWidget(w)
-    return w
+    yield w
+    w.close()  # triggers closeEvent, stopping all persistent threads cleanly
 
 
 @pytest.fixture
-def make_main_window(qtbot, isolated_settings: QSettings):
+def make_main_window(
+    qtbot, isolated_settings: QSettings
+) -> Generator[Any, None, None]:
     """Factory fixture: call make_main_window(service=...) to get a MainWindow
     registered with qtbot.
 
@@ -41,4 +45,6 @@ def make_main_window(qtbot, isolated_settings: QSettings):
         _windows.append(w)
         return w
 
-    return factory
+    yield factory
+    for w in _windows:
+        w.close()  # triggers closeEvent, stopping all persistent threads cleanly

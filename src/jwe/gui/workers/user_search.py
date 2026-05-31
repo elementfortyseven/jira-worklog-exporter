@@ -4,31 +4,41 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot
 
 from jwe.api.user import User
 
 
 class UserSearchWorker(QObject):
-    """One-shot worker that calls search_fn and emits results or failed."""
+    """Persistent worker; lives on its own thread for widget lifetime.
 
-    results = Signal(list)  # list[User]
-    failed = Signal(str)    # user-facing error message
+    Queries arrive via query_requested signal (queued connection).
+    Results emitted via results / failed signals.
+    """
 
-    def __init__(
-        self,
-        query: str,
-        search_fn: Callable[[str], list[User]],
-        parent: QObject | None = None,
-    ) -> None:
+    results = Signal(list)          # list[User]
+    failed = Signal(str)            # error message
+
+    query_requested = Signal(str)   # query string
+
+    def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._query = query
-        self._search_fn = search_fn
+        self._search_fn: Callable[[str], list[User]] | None = None
+        self.query_requested.connect(self._on_query_requested)
 
-    def run(self) -> None:
-        """Call search_fn; always emits results or failed."""
+    def set_search_fn(self, fn: Callable[[str], list[User]] | None) -> None:
+        """Called from main thread. Atomic attribute assignment (GIL)."""
+        self._search_fn = fn
+
+    @Slot(str)
+    def _on_query_requested(self, query: str) -> None:
+        """Runs on worker thread."""
+        fn = self._search_fn  # snapshot
+        if fn is None:
+            self.failed.emit("Authentication required")
+            return
         try:
-            users = self._search_fn(self._query)
+            users = fn(query)
             self.results.emit(users)
         except Exception as exc:
             self.failed.emit(str(exc))

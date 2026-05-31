@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import Any
 
 from PySide6.QtCore import QSize, Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -37,22 +36,26 @@ class UserSearchWidget(QGroupBox):
         search_fn: Callable[[str], list[User]] | None = None,
     ) -> None:
         super().__init__("Users", parent)  # i18n: section.user_search.title
-        self._search_fn = search_fn
-        self._search_thread: QThread | None = None
-        self._search_worker: UserSearchWorker | None = None
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
         self._debounce_timer.setInterval(400)
         self._build_ui()
         self._debounce_timer.timeout.connect(self._on_debounce_fired)
+        self._search_worker = UserSearchWorker()
+        self._search_thread = QThread()
+        self._search_worker.moveToThread(self._search_thread)
+        self._search_worker.results.connect(self._on_search_results)
+        self._search_worker.failed.connect(self._on_search_failed)
+        # Thread is started lazily on the first debounce, not here.  Tests that
+        # never type in the search field get no running thread, which avoids
+        # __del__-time hangs when the widget is held in a local variable without
+        # closeEvent firing (same pattern as ExportWorker in MainWindow).
+        if search_fn is not None:
+            self._search_worker.set_search_fn(search_fn)
 
     def set_search_fn(self, fn: Callable[[str], list[User]] | None) -> None:
-        """Bind or clear the search function.
-
-        Pass a callable to enable search after a successful connection test.
-        Pass None to disable search (e.g. after auth fields change).
-        """
-        self._search_fn = fn
+        """Bind or clear the search function."""
+        self._search_worker.set_search_fn(fn)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -125,32 +128,19 @@ class UserSearchWidget(QGroupBox):
             return
         self._debounce_timer.start(400)
 
+    def _ensure_thread_started(self) -> None:
+        if not self._search_thread.isRunning():
+            self._search_thread.start()
+
     def _on_debounce_fired(self) -> None:
         query = self.search_field.text().strip()
         if not query:
             return
-        if self._search_fn is None:
-            self.search_status_label.setText(
-                "Authentication required"  # i18n: user_search.status.auth_required
-            )
-            return
+        self._ensure_thread_started()
         self.search_status_label.setText("Searching...")  # i18n: user_search.status.searching
-        worker = UserSearchWorker(query, self._search_fn)
-        thread = QThread()
-        worker.moveToThread(thread)
-        worker.results.connect(self._on_search_results)
-        worker.failed.connect(self._on_search_failed)
-        worker.results.connect(self._on_search_worker_done)
-        worker.failed.connect(self._on_search_worker_done)
-        thread.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
-        thread.finished.connect(self._clear_search_refs)
-        thread.started.connect(worker.run)
-        self._search_thread = thread
-        self._search_worker = worker
-        thread.start()
+        self._search_worker.query_requested.emit(query)
 
-    def _on_search_results(self, users: list[Any]) -> None:
+    def _on_search_results(self, users: list[User]) -> None:
         self.search_status_label.clear()
         self.results_list.clear()
         for user in users:
@@ -162,14 +152,6 @@ class UserSearchWidget(QGroupBox):
     def _on_search_failed(self, message: str) -> None:
         self.results_list.clear()
         self.search_status_label.setText(message)
-
-    def _on_search_worker_done(self) -> None:
-        if self._search_thread is not None:
-            self._search_thread.quit()
-
-    def _clear_search_refs(self) -> None:
-        self._search_thread = None
-        self._search_worker = None
 
     # ------------------------------------------------------------------
     # Shuttle helpers
@@ -280,8 +262,9 @@ class UserSearchWidget(QGroupBox):
     # ------------------------------------------------------------------
 
     def stop_running_threads(self) -> None:
-        """Abort any in-flight search worker."""
-        if self._search_thread is not None and self._search_thread.isRunning():
+        """Stop the debounce timer and the persistent search worker thread."""
+        self._debounce_timer.stop()
+        if self._search_thread.isRunning():
             self._search_thread.quit()
             if not self._search_thread.wait(2000):
                 logger.warning(

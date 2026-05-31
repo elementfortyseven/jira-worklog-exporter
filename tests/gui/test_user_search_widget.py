@@ -1,4 +1,4 @@
-"""Tests for UserSearchWidget and UserSearchWorker -- Etappe 3."""
+"""Tests for UserSearchWidget and UserSearchWorker -- Etappe 3 / JWE-26."""
 
 from __future__ import annotations
 
@@ -512,3 +512,80 @@ class TestIsValid:
         assert widget.is_valid() is True
         qtbot.mouseClick(widget.btn_rem_all, Qt.MouseButton.LeftButton)
         assert widget.is_valid() is False
+
+
+# ---------------------------------------------------------------------------
+# Pattern C contract (JWE-26)
+# ---------------------------------------------------------------------------
+
+
+class TestPatternC:
+    def test_debounce_emits_query_requested(
+        self, qtbot, widget: UserSearchWidget, mock_search_fn: MagicMock
+    ) -> None:
+        mock_search_fn.return_value = []
+        widget.search_field.setText("alice")
+        with qtbot.waitSignal(widget._search_worker.query_requested, timeout=1500) as blocker:
+            pass
+        assert blocker.args[0] == "alice"
+
+    def test_debounce_does_not_emit_query_requested_for_empty_text(
+        self, qtbot, widget: UserSearchWidget, mock_search_fn: MagicMock
+    ) -> None:
+        received: list[str] = []
+        widget._search_worker.query_requested.connect(received.append)
+        widget.search_field.setText("ali")
+        widget.search_field.setText("")
+        qtbot.wait(600)
+        assert received == []
+
+    def test_set_search_fn_forwards_to_worker(
+        self, qtbot, widget: UserSearchWidget
+    ) -> None:
+        fn = MagicMock(return_value=[])
+        widget.set_search_fn(fn)
+        assert widget._search_worker._search_fn is fn
+
+    def test_set_search_fn_none_clears_worker_fn(
+        self, qtbot, widget: UserSearchWidget
+    ) -> None:
+        widget.set_search_fn(None)
+        assert widget._search_worker._search_fn is None
+
+    def test_thread_not_running_before_first_debounce(
+        self, widget: UserSearchWidget
+    ) -> None:
+        assert not widget._search_thread.isRunning()
+
+    def test_thread_starts_on_first_debounce(
+        self, qtbot, widget: UserSearchWidget, mock_search_fn: MagicMock
+    ) -> None:
+        mock_search_fn.return_value = []
+        widget.search_field.setText("query")
+        widget._on_debounce_fired()
+        assert widget._search_thread.isRunning()
+
+    def test_thread_stops_on_stop_running_threads(
+        self, qtbot, widget: UserSearchWidget, mock_search_fn: MagicMock
+    ) -> None:
+        mock_search_fn.return_value = []
+        widget.search_field.setText("query")
+        widget._on_debounce_fired()  # lazy-start the thread
+        assert widget._search_thread.isRunning()
+        widget.stop_running_threads()
+        assert not widget._search_thread.isRunning()
+
+    def test_20_rapid_debounce_triggers_no_crash(
+        self, qtbot, widget: UserSearchWidget, mock_search_fn: MagicMock
+    ) -> None:
+        mock_search_fn.return_value = [_ALICE]
+        widget.search_field.setText("query")
+        # First call: lazy-starts the thread
+        widget._on_debounce_fired()
+        assert widget._search_thread.isRunning()  # thread now live
+        # Remaining 19: find thread already running, just emit query_requested
+        for _ in range(19):
+            widget._on_debounce_fired()
+        qtbot.waitUntil(lambda: mock_search_fn.call_count == 20, timeout=5000)
+        assert mock_search_fn.call_count == 20
+        assert widget.results_list.count() == 1

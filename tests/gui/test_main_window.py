@@ -215,26 +215,26 @@ _SA_CONFIG = ExportConfig(
 
 
 class TestConnectionVerifiedWiring:
-    # MW-4: before any connection_verified, _search_fn is None
+    # MW-4: before any connection_verified, _search_fn on the worker is None
     def test_search_fn_is_none_before_connection_verified(
         self, main_window: MainWindow
     ) -> None:
-        assert main_window.user_search_widget._search_fn is None
+        assert main_window.user_search_widget._search_worker._search_fn is None
 
-    # MW-1: after connection_verified signal, _search_fn is set
+    # MW-1: after connection_verified signal, _search_fn is set on the worker
     def test_search_fn_set_after_connection_verified(
         self, main_window: MainWindow
     ) -> None:
         main_window.auth_widget.connection_verified.emit(_SA_CONFIG)
-        assert main_window.user_search_widget._search_fn is not None
+        assert main_window.user_search_widget._search_worker._search_fn is not None
 
-    # MW-2: after connection_invalidated, _search_fn is None again
+    # MW-2: after connection_invalidated, _search_fn on the worker is None again
     def test_search_fn_cleared_after_connection_invalidated(
         self, main_window: MainWindow
     ) -> None:
         main_window.auth_widget.connection_verified.emit(_SA_CONFIG)
         main_window.auth_widget.connection_invalidated.emit()
-        assert main_window.user_search_widget._search_fn is None
+        assert main_window.user_search_widget._search_worker._search_fn is None
 
     # MW-3: search_fn closure calls service.search_users with the correct config
     def test_search_fn_closure_calls_search_users_with_correct_config(
@@ -247,7 +247,8 @@ class TestConnectionVerifiedWiring:
         qtbot.addWidget(mw)
 
         mw.auth_widget.connection_verified.emit(_SA_CONFIG)
-        assert mw.user_search_widget._search_fn is not None
-        mw.user_search_widget._search_fn("alice")
+        fn = mw.user_search_widget._search_worker._search_fn
+        assert fn is not None
+        fn("alice")
 
         mock_svc.search_users.assert_called_once_with(_SA_CONFIG, "alice")
