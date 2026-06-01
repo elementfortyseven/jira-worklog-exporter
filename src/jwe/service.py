@@ -12,6 +12,7 @@ where *identifier* is the cloud_id (Service Account) or site_url
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import types
@@ -31,6 +32,8 @@ from jwe.api.user import search_users as _search_users
 from jwe.config import ExportConfig
 from jwe.exporter import ExportProgress, ExportResult
 from jwe.exporter import run_export as _run_export
+
+logger = logging.getLogger(__name__)
 
 # Module-level reference so tests can monkeypatch via mock.patch.object(service, "keyring", ...).
 keyring: types.ModuleType | None = _keyring_module
@@ -212,9 +215,13 @@ def load_token(auth_mode: AuthMode, identifier: str) -> str | None:
     """
     _require_keyring()
     assert keyring is not None
-    return keyring.get_password(  # type: ignore[no-any-return]
-        _KEYRING_SERVICE, _keyring_key(auth_mode, identifier)
-    )
+    try:
+        return keyring.get_password(  # type: ignore[no-any-return]
+            _KEYRING_SERVICE, _keyring_key(auth_mode, identifier)
+        )
+    except OSError as exc:
+        logger.debug("Keyring read failed: %r", exc)
+        return None
 
 
 def delete_token(auth_mode: AuthMode, identifier: str) -> None:
