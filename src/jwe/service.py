@@ -14,12 +14,13 @@ from __future__ import annotations
 
 import os
 import threading
+import types
 from collections.abc import Iterator
 
 try:
     import keyring as _keyring_module
 except ImportError:
-    _keyring_module = None
+    _keyring_module = None  # type: ignore[assignment]
 
 from jwe.api.auth import AuthMode
 from jwe.api.client import AuthenticationError, JiraApiError, JiraCloudClient, JiraPermissionError
@@ -32,7 +33,7 @@ from jwe.exporter import ExportProgress, ExportResult
 from jwe.exporter import run_export as _run_export
 
 # Module-level reference so tests can monkeypatch via mock.patch.object(service, "keyring", ...).
-keyring = _keyring_module
+keyring: types.ModuleType | None = _keyring_module
 
 __all__ = [
     "AuthenticationError",
