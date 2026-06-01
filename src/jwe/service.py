@@ -219,7 +219,7 @@ def load_token(auth_mode: AuthMode, identifier: str) -> str | None:
         return keyring.get_password(  # type: ignore[no-any-return]
             _KEYRING_SERVICE, _keyring_key(auth_mode, identifier)
         )
-    except OSError as exc:
+    except Exception as exc:  # keyring backends raise OS-specific types we cannot enumerate
         logger.debug("Keyring read failed: %r", exc)
         return None
 
