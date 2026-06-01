@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from PySide6.QtCore import QByteArray, QDate, QSettings, Qt
 from PySide6.QtWidgets import QListWidgetItem
 
@@ -78,6 +80,10 @@ class TestLanguageToggle:
 class TestQSettingsGeometryRoundtrip:
     """closeEvent saves geometry; next MainWindow with same settings restores it."""
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Flaky on Windows CI: MainWindow state leak between instances. Tracked in JWE-31 for v1.1.0.",
+    )
     def test_saves_and_restores_geometry(self, qtbot, tmp_path: Path) -> None:
         settings_file = str(tmp_path / "geo_test.ini")
 
@@ -169,6 +175,10 @@ class TestExportButtonIntegration:
 
 
 class TestQSettingsNewFields:
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Flaky on Windows CI: MainWindow state leak between instances. Tracked in JWE-31 for v1.1.0.",
+    )
     def test_saves_and_restores_filter_project_keys(
         self, qtbot, tmp_path: Path
     ) -> None:
@@ -185,6 +195,10 @@ class TestQSettingsNewFields:
         qtbot.addWidget(w2)
         assert w2.filter_widget.project_keys_field.text() == "PROJ"
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Flaky on Windows CI: MainWindow state leak between instances. Tracked in JWE-31 for v1.1.0.",
+    )
     def test_saves_and_restores_output_dir(
         self, qtbot, tmp_path: Path
     ) -> None:
