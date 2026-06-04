@@ -5,11 +5,48 @@ from __future__ import annotations
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from PySide6.QtCore import QSettings
 
 from jwe.gui.main_window import MainWindow
+
+
+@pytest.fixture(autouse=True)
+def mock_keyring(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent the real Windows keyring backend from firing in every GUI test.
+
+    Patches jwe.service.keyring.get_password to return None so load_token
+    finds no stored token without touching the OS credential store.
+    raising=False is belt-and-suspenders for the degraded case where the
+    optional import fell through and the module alias is None.
+    """
+    monkeypatch.setattr(
+        "jwe.service.keyring.get_password",
+        lambda *a, **kw: None,
+        raising=False,
+    )
+
+
+@pytest.fixture
+def keyring_fake(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+    """Explicit override for tests that exercise the real load_token code path.
+
+    Overrides the autouse mock_keyring with a configurable MagicMock so the
+    test can control the exact return value or side effect:
+
+        def test_token_prefill(keyring_fake):
+            keyring_fake.return_value = "secret"
+            ...
+    """
+    fake: MagicMock = MagicMock(return_value=None)
+    monkeypatch.setattr(
+        "jwe.service.keyring.get_password",
+        fake,
+        raising=False,
+    )
+    return fake
 
 
 @pytest.fixture
