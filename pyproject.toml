@@ -110,7 +110,14 @@ addopts = [
     "--cov=jwe",
     "--cov-report=term-missing",
 ]
-timeout = 10
+# Absolute per-test timeout in seconds. Raised 10 -> 30 because the first GUI
+# test pays the cold QApplication/PySide6 startup cost, which can exceed 10s on
+# the slow GitLab Windows runner (beta, variable provisioning) and caused an
+# intermittent timeout in AuthWidget construction (JWE-31). timeout_func_only is
+# deliberately NOT set (stays false) so the timeout still covers fixture
+# teardown — the MainWindow closeEvent / stop_running_threads hang targeted by
+# JWE-31 Phase 2 must remain catchable.
+timeout = 30
 # Qt offscreen platform for CI environments without
 # display. Works on Windows/macOS/Linux uniformly.
 qt_qpa_platform = "offscreen"
