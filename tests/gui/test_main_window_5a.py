@@ -274,22 +274,22 @@ class TestBuildConfigDates:
     ) -> None:
         mw = MainWindow(_settings=isolated_settings)
         qtbot.addWidget(mw)
-        mw.filter_widget.from_date.setDate(QDate(2026, 3, 1))
+        mw.filter_widget.from_date.setDate(QDate(2025, 1, 15))
 
         config = mw._build_config()
 
-        assert config.from_date == date(2026, 3, 1)
+        assert config.from_date == date(2025, 1, 15)
 
     def test_collects_to_date(
         self, qtbot, isolated_settings: QSettings
     ) -> None:
         mw = MainWindow(_settings=isolated_settings)
         qtbot.addWidget(mw)
-        mw.filter_widget.to_date.setDate(QDate(2026, 3, 31))
+        mw.filter_widget.to_date.setDate(QDate(2025, 3, 20))
 
         config = mw._build_config()
 
-        assert config.to_date == date(2026, 3, 31)
+        assert config.to_date == date(2025, 3, 20)
 
 
 # ---------------------------------------------------------------------------

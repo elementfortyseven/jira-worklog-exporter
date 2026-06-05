@@ -150,8 +150,8 @@ class TestExportButtonIntegration:
     ) -> None:
         _make_all_valid(main_window, tmp_path)
         # invert date range
-        main_window.filter_widget.from_date.setDate(QDate(2026, 2, 1))
-        main_window.filter_widget.to_date.setDate(QDate(2026, 1, 1))
+        main_window.filter_widget.from_date.setDate(QDate(2025, 2, 15))
+        main_window.filter_widget.to_date.setDate(QDate(2025, 1, 15))
         assert not main_window.status_widget.export_btn.isEnabled()
 
     def test_export_btn_disabled_when_output_invalid(

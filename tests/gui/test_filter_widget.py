@@ -70,26 +70,26 @@ class TestDefaultValues:
 
 class TestIsValidDates:
     def test_valid_when_from_equals_to(self, widget: FilterWidget) -> None:
-        today = QDate.currentDate()
-        widget.from_date.setDate(today)
-        widget.to_date.setDate(today)
+        same_date = QDate(2025, 6, 15)
+        widget.from_date.setDate(same_date)
+        widget.to_date.setDate(same_date)
         assert widget.is_valid() is True
 
     def test_valid_when_from_lt_to(self, widget: FilterWidget) -> None:
-        widget.from_date.setDate(QDate(2026, 1, 1))
-        widget.to_date.setDate(QDate(2026, 1, 31))
+        widget.from_date.setDate(QDate(2025, 1, 15))
+        widget.to_date.setDate(QDate(2025, 1, 20))
         assert widget.is_valid() is True
 
     def test_invalid_when_from_gt_to(self, widget: FilterWidget) -> None:
-        widget.from_date.setDate(QDate(2026, 2, 1))
-        widget.to_date.setDate(QDate(2026, 1, 31))
+        widget.from_date.setDate(QDate(2025, 2, 15))
+        widget.to_date.setDate(QDate(2025, 1, 20))
         assert widget.is_valid() is False
 
     def test_valid_after_correcting_inverted_range(self, widget: FilterWidget) -> None:
-        widget.from_date.setDate(QDate(2026, 2, 1))
-        widget.to_date.setDate(QDate(2026, 1, 31))
+        widget.from_date.setDate(QDate(2025, 2, 15))
+        widget.to_date.setDate(QDate(2025, 1, 20))
         assert widget.is_valid() is False
-        widget.from_date.setDate(QDate(2026, 1, 1))
+        widget.from_date.setDate(QDate(2025, 1, 10))
         assert widget.is_valid() is True
 
 
@@ -169,13 +169,13 @@ class TestQSettings:
     def test_from_date_not_saved(
         self, widget: FilterWidget, isolated_settings: QSettings
     ) -> None:
-        widget.from_date.setDate(QDate(2026, 3, 1))
+        widget.from_date.setDate(QDate(2025, 3, 15))
         widget.save_settings(isolated_settings)
         assert isolated_settings.value("filter/from_date") is None
 
     def test_to_date_not_saved(
         self, widget: FilterWidget, isolated_settings: QSettings
     ) -> None:
-        widget.to_date.setDate(QDate(2026, 3, 31))
+        widget.to_date.setDate(QDate(2025, 3, 15))
         widget.save_settings(isolated_settings)
         assert isolated_settings.value("filter/to_date") is None
