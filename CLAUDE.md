@@ -98,7 +98,7 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 
 ## 1. Project state
 
-**Phase:** v1.0.0 released. v1.0.1 patch in preparation: UserSearchWorker refactored to Pattern C (JWE-26, fixes crash on fast typing) and keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries). CLI, service layer, and GUI core functionality are complete. GUI Etappe 6 (full i18n marker resolution) is planned for v1.1.0 together with UI polish (inline field validation, QSS styling, min window size). The hardcoded UI strings with # i18n: markers do not block the v1.0.x releases.
+**Phase:** v1.0.0 released. v1.0.1 patch in preparation: UserSearchWorker refactored to Pattern C (JWE-26, fixes crash on fast typing) and keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries). JWE-31 resolved: the three win32-skipped two-instance MainWindow tests are now un-skipped and green; the flake was cold-start timeout pressure, resolved by the 30s timeout bump (7de53d9); no state leak, no teardown bug. CLI, service layer, and GUI core functionality are complete. GUI Etappe 6 (full i18n marker resolution) is planned for v1.1.0 together with UI polish (inline field validation, QSS styling, min window size). The hardcoded UI strings with # i18n: markers do not block the v1.0.x releases.
 
 **CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. GitLab CI has been fully green since JWE-10 (QRadioButton click compatibility fix for the winrm executor). The mirror push to GitLab is manual (never from Claude Code).
 
@@ -118,7 +118,7 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
 | `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
-| `jwe.gui` | ✅ etappen 1-5b complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields. 544+ tests green across the suite. Etappe 6 (i18n marker resolution) planned for v1.1.0. |
+| `jwe.gui` | ✅ etappen 1-5b complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields. 545 tests green across the suite. Etappe 6 (i18n marker resolution) planned for v1.1.0. |
 | `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
@@ -309,6 +309,17 @@ GitLab Windows runners use the winrm executor (non-interactive session). `qtbot.
 GUI test fixtures that create widgets with persistent QThreads must be generator fixtures with explicit `w.close()` teardown. This triggers `closeEvent`, which stops all persistent threads cleanly. Without teardown, threads may outlive the test, leak into Python's cyclic GC scope, and crash the test session at interpreter shutdown with `QThread: Destroyed while thread '' is still running` (exit code 9). See JWE-26 commit message for the full diagnostic chain.
 
 Additionally, widgets that start QThreads lazily based on timer events (debounce timer, etc.) must stop those timers in `stop_running_threads()` to prevent a late-firing timer from starting a thread *after* fixture cleanup has run. The convention: `stop_running_threads()` stops timers first, then quits the thread.
+
+### Teardown-contract assertion convention
+
+Every persistent `QThread` managed by a widget must have at least one test that verifies the `closeEvent` actually stops it. The pattern:
+
+1. Start the thread directly (e.g. `w._export_thread.start()`) — do not rely on a never-started thread being trivially not-running.
+2. Assert `isRunning()` is `True` before closing, to prove the thread was genuinely started.
+3. Call `w.close()` to trigger `closeEvent`.
+4. Assert `isRunning()` is `False` to confirm quit()+wait() ran to completion.
+
+This guards against production paths where the thread could be GC-destroyed while still running (exit code 9 crash). See `TestCloseEventTeardown` in `tests/gui/test_main_window.py`.
 
 ---
 
