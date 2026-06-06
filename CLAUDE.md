@@ -98,7 +98,9 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 
 ## 1. Project state
 
-**Phase:** v1.0.0 released. v1.0.1 patch in preparation: UserSearchWorker refactored to Pattern C (JWE-26, fixes crash on fast typing) and keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries). JWE-31 resolved: the three win32-skipped two-instance MainWindow tests are now un-skipped and green; the flake was cold-start timeout pressure, resolved by the 30s timeout bump (7de53d9); no state leak, no teardown bug. JWE-29 resolved: full audit of date/time coincidence with runtime defaults; all date literals in tests now use day-in-2..27 (convention documented in §9). CLI, service layer, and GUI core functionality are complete. GUI Etappe 6 (full i18n marker resolution) is planned for v1.1.0 together with UI polish (inline field validation, QSS styling, min window size). The hardcoded UI strings with # i18n: markers do not block the v1.0.x releases.
+**Phase:** v1.0.1 released (2026-06-02). It shipped the UserSearchWorker Pattern C refactor (JWE-26, fixes crash on fast typing) and the keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries). Two follow-ups were then resolved against `main`: JWE-31 (the three win32-skipped two-instance MainWindow tests are un-skipped and green; the flake was cold-start timeout pressure, resolved by the 30s timeout bump 7de53d9; no state leak, no teardown bug) and JWE-29 (full audit of date/time coincidence with runtime defaults; all date literals in tests now use day-in-2..27, convention documented in §9). CLI, service layer, and GUI core functionality are complete.
+
+**Roadmap.** v1.1.0 (target 2026-06-13) — GUI Etappe 6 (full i18n marker resolution + runtime language switch, JWE-2) plus a security foundation (URL allowlist to *.atlassian.net JWE-22, bandit/pip-audit in CI JWE-23) and the CLAUDE.md German-residual cleanup (JWE-28). v1.2.0 (target 2026-06-27) — a purely visual redesign (epic JWE-32): a dark "Technical/Mono" theme, frameless window shell, and card-based section layout, on top of the existing PySide6 widget tree with no functional change. The earlier UX-polish items (inline-validation red border, minimum window size, ad-hoc QSS styling) are absorbed into JWE-32 and delivered there against the new design tokens rather than hand-rolled in v1.1.0 (JWE-3 -> JWE-36, JWE-4 -> JWE-34). v1.3.0 (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme. The hardcoded UI strings with # i18n: markers do not block any v1.0.x release.
 
 **CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. GitLab CI has been fully green since JWE-10 (QRadioButton click compatibility fix for the winrm executor). The mirror push to GitLab is manual (never from Claude Code).
 
@@ -118,7 +120,7 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
 | `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
-| `jwe.gui` | ✅ etappen 1-5b complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields. 545 tests green across the suite. Etappe 6 (i18n marker resolution) planned for v1.1.0. |
+| `jwe.gui` | ✅ etappen 1-5b complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields. 545 tests green across the suite. Etappe 6 (i18n marker resolution) planned for v1.1.0; visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
 | `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
@@ -391,7 +393,7 @@ self.label.setText("Connection test")  # i18n: auth.btn.test_connection
 
 This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than a hunt through the codebase.
 
-v1.0.0 released after Etappe 5b. Etappe 6 below is planned for v1.1.0 together with broader UX polish based on real-world feedback from v1.0 users.
+v1.0.0 released after Etappe 5b; v1.0.1 followed as a patch. Etappe 6 below (i18n marker resolution) is planned for v1.1.0. The visual UX polish originally bundled with it (inline-validation styling, minimum window size, QSS theming) has been pulled into the v1.2 visual redesign epic JWE-32 — see "v1.2 — Visual redesign" at the end of this section.
 
 ---
 
@@ -513,23 +515,35 @@ v1.0.0 released after Etappe 5b. Etappe 6 below is planned for v1.1.0 together w
 
 ---
 
-### Etappe 6 — i18n vollständig & UX-Politur (geplant für v1.1.0)
+### Etappe 6 — Full i18n (planned for v1.1.0)
 
-**Goal:** Fully internationalised, production-ready GUI.
+**Goal:** Fully internationalised GUI; runtime language switch across all strings.
 
 **Implements:**
 - All `# i18n: <key>` markers resolved: `t(key, lang)` everywhere, new keys added to `jwe/i18n.py` string tables
 - `retranslate_ui` stubs (Etappe 1) filled in on every widget
 - Language persisted via `QSettings`; language toggle works at runtime across all strings
-- Inline field validation: red QSS border on invalid fields, cleared on correction
-- Minimum window size enforced
 
 **Tests (pytest-qt):**
 - Every i18n key used in the UI resolves without `KeyError` for both `de` and `en` (parametrised)
 - Language switch at runtime updates all visible widget texts
-- Invalid field shows error styling; valid input clears it
+
+> The inline-validation styling and minimum-window-size items that previously lived here moved to the v1.2 visual redesign (JWE-32): the error border is delivered as a token-based QSS class in JWE-36, the minimum window size is enforced by the frameless shell in JWE-34.
 
 ---
+
+### v1.2 — Visual redesign (epic JWE-32)
+
+A purely visual and structural re-skin on top of the existing PySide6 widget tree — no change to data flow, auth, export, CSV, or threading logic. Direction "Technical/Mono": navy base, cyan neon accent, monospace labels/numbers, bracketed section indices, card-based sections, terminal-style export log. The interactive prototype lives outside the repo (`JWE Redesign.html`); the prototype and the extracted token values should be committed under `docs/design/` before JWE-33 starts.
+
+New architecture introduced here (all under `jwe/gui/`):
+- `theme/tokens.py` — single source of truth for palette, spacing, radii, font roles (no Qt import)
+- `theme/app.qss` — central stylesheet loaded once on QApplication startup; Fusion stays the base style
+- `widgets/section_card.py` — reusable numbered card wrapping each of the four sections
+- a frameless `MainWindow` (custom title bar with DE/EN toggle, min/max/close, window move) replacing OS chrome
+- restyled form controls, identity strip + status chips, themed export footer, and a motion layer (`QPropertyAnimation`/`QTimer`/`QGraphicsDropShadowEffect`) with a reduced-motion fallback
+
+Child stories: JWE-33 (tokens/theme), JWE-34 (frameless shell, absorbs JWE-4), JWE-35 (section cards), JWE-36 (form controls, absorbs JWE-3's error border), JWE-37 (identity strip/chips), JWE-38 (interim user/chip styling, pre-JWE-12), JWE-39 (export footer), JWE-40 (motion). Keep the auth-mode controls as `QRadioButton`s (styled as a segmented control) for winrm test compatibility per §9. Each story stays one Etappe = one commit = one session; §1 and this section are updated on completion.
 
 ### Review pattern (verbindlich für jede Etappe)
 

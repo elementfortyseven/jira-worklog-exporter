@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.2 |
+| Document version | 1.3 |
 | Status | Draft |
 | Date | 2026-05-29 |
 | Author | Martin |
@@ -11,6 +11,7 @@
 | Target system | Jira Cloud (REST API v3, one site of an organisation) |
 | Changes vs. 1.0 | Service account authentication added as the preferred mode; gateway URL `api.atlassian.com/ex/jira/{cloudId}` established; cloud ID discovery; scope and permission layering documented; Appendix A "Setup guide for org admins" added. |
 | Changes vs. 1.1 | Python minimum version raised to 3.12 (3.11 removed from CI); GUI tests verified on Windows only, Linux/Mac supported as CLI platforms. |
+| Changes vs. 1.2 | Roadmap (§17) reconciled with the JWE epic plan: v1.1 = i18n + security foundation, v1.2 = visual redesign (JWE-32), v1.3 = User Management v2 + interaction redesign; profiles/xlsx and Data Center deferred to "later". §10 notes the v1.2 visual re-skin (no functional change). |
 
 ---
 
@@ -336,6 +337,8 @@ jira_worklog_exporter/
 
 ## 10. UI Design (PySide6 GUI)
 
+> **v1.2 visual redesign (JWE-32):** from v1.2 the GUI is re-skinned with a dark "Technical/Mono" theme, a frameless custom window shell, and card-based sections. This changes the *visual presentation* only — the functional layout, fields, and grouping below are unchanged. See CLAUDE.md §14 "v1.2 — Visual redesign" and epic JWE-32.
+
 **Layout (vertical, single window, ~640×560 px):**
 
 1. **Connection** (group)
@@ -513,9 +516,13 @@ Exit codes:
 | Version | Content |
 |---|---|
 | v1.0 | Core functionality per this PRD (CLI + GUI, Windows build) |
-| v1.1 | Profiles (save/load filters as JSON), additional column profiles, .xlsx export |
-| v1.2 | Jira Data Center support (PAT auth) |
-| v2.0 | OAuth 2.0 Client Credentials Flow for service accounts (no more long-lived tokens); OAuth 2.0 (3LO) for interactive user login; evaluation dashboard (local, no server) |
+| v1.0.1 | Patch: keyring backend bundling, UserSearchWorker Pattern C, GUI test-isolation fixes |
+| v1.1 | Full i18n + runtime language switch (Etappe 6); security foundation (URL allowlist to *.atlassian.net, bandit/pip-audit in CI) |
+| v1.2 | Visual redesign (epic JWE-32): dark "Technical/Mono" theme, frameless shell, card-based layout — no functional change |
+| v1.3 | User Management v2 (local user cache, wildcard search, CSV/group import, presets); interaction redesign (replace shuttle, multi-selects) |
+| v1.4 | Security audit pass (token handling, path traversal, JQL injection hardening) |
+| later | Profiles (save/load filters as JSON), additional column profiles, .xlsx export; Jira Data Center support (PAT auth) |
+| v2.0 | OAuth 2.0 Client Credentials Flow for service accounts; OAuth 2.0 (3LO) for interactive user login; evaluation dashboard (local, no server) |
 
 ---
 
