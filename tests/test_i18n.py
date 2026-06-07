@@ -23,17 +23,17 @@ def test_de_differs_from_en() -> None:
 
 
 def test_format_substitution_en() -> None:
-    result = t("error.api_failed", "en", status=403)
+    result = t("error.api_failed", "en", detail=403)
     assert "403" in result
 
 
 def test_format_substitution_de() -> None:
-    assert "500" in t("error.api_failed", "de", status=500)
+    assert "500" in t("error.api_failed", "de", detail=500)
 
 
-def test_label_without_placeholder_no_error() -> None:
-    # Cloud-ID contains no {…} tokens; must not crash when called without kwargs.
-    assert t("label.cloud_id", "de") == "Cloud-ID"
+def test_key_without_placeholder_no_error() -> None:
+    # section.auth.title contains no {…} tokens; must not crash when called without kwargs.
+    assert t("section.auth.title", "de") == "Authentifizierung"
 
 
 def test_no_kwargs_returns_raw_template() -> None:
@@ -59,3 +59,187 @@ def test_key_parity_en_de() -> None:
 @pytest.mark.parametrize("key", sorted(STRINGS["en"].keys()))
 def test_all_keys_present_in_de(key: str) -> None:
     assert key in STRINGS["de"], f"Key {key!r} missing in 'de'"
+
+
+# -- New 6a tests: verify every namespace resolves in both languages ----------
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "app.title",
+    "section.auth.title",
+    "section.filter.title",
+    "section.output.title",
+    "section.user_search.title",
+])
+def test_section_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "auth.radio.service_account",
+    "auth.radio.user_token",
+    "auth.sa.label.site_url",
+    "auth.sa.label.cloud_id",
+    "auth.sa.label.email",
+    "auth.sa.label.token",
+    "auth.sa.label.auth_header",
+    "auth.sa.discovery_url.placeholder",
+    "auth.sa.cloud_id.placeholder",
+    "auth.sa.email.placeholder",
+    "auth.sa.token.placeholder",
+    "auth.user.label.site_url",
+    "auth.user.label.email",
+    "auth.user.label.token",
+    "auth.user.site_url.placeholder",
+    "auth.user.email.placeholder",
+    "auth.user.token.placeholder",
+    "auth.btn.discover_cloud_id",
+    "auth.btn.test_connection",
+    "auth.checkbox.save_token",
+    "auth.keyring.unavailable",
+    "auth.status.testing",
+])
+def test_auth_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+def test_auth_status_connected_resolves(lang: str) -> None:
+    result = t("auth.status.connected", lang, display_name="Test User", email="test@example.com")
+    assert "Test User" in result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+def test_auth_status_cloud_id_found_resolves(lang: str) -> None:
+    result = t("auth.status.cloud_id_found", lang, cloud_id="abc-123")
+    assert "abc-123" in result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+def test_auth_status_discovery_failed_resolves(lang: str) -> None:
+    result = t("auth.status.discovery_failed", lang, message="timeout")
+    assert "timeout" in result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "filter.label.from",
+    "filter.label.to",
+    "filter.label.projects",
+    "filter.project_keys.placeholder",
+])
+def test_filter_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "output.label.output_dir",
+    "output.label.delimiter",
+    "output.label.profile",
+    "output.label.api_version",
+    "output.btn.browse",
+    "output.delimiter.comma",
+    "output.delimiter.semicolon",
+    "output.browse_dialog.title",
+])
+def test_output_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "user_search.search.placeholder",
+    "user_search.btn.add_one",
+    "user_search.btn.add_all",
+    "user_search.btn.rem_one",
+    "user_search.btn.rem_all",
+    "user_search.status.searching",
+])
+def test_user_search_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "status.btn.export",
+    "status.btn.cancel",
+    "status.btn.open_csv",
+    "status.btn.open_folder",
+    "status.label.ready",
+    "status.label.not_ready",
+    "status.log.dry_run_complete",
+    "status.log.cancelling",
+    "status.log.cancelled",
+])
+def test_status_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+def test_status_counter_issues_resolves(lang: str) -> None:
+    result = t("status.counter.issues_n", lang, n=42)
+    assert "42" in result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+def test_status_counter_worklogs_resolves(lang: str) -> None:
+    result = t("status.counter.worklogs_n", lang, n=7)
+    assert "7" in result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+def test_status_log_export_complete_resolves(lang: str) -> None:
+    result = t("status.log.export_complete", lang, path="/out/file.csv")
+    assert "/out/file.csv" in result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+def test_status_log_error_resolves(lang: str) -> None:
+    result = t("status.log.error", lang, message="something went wrong")
+    assert "something went wrong" in result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "dialog.close_during_export.title",
+    "dialog.close_during_export.text",
+])
+def test_dialog_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "exporter.msg.cancelled",
+    "exporter.msg.complete",
+])
+def test_exporter_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key", [
+    "error.unexpected",
+    "error.generic",
+])
+def test_new_error_keys_resolve(key: str, lang: str) -> None:
+    result = t(key, lang, detail="oops")
+    assert "oops" in result
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+def test_summary_authenticated_as_resolves(lang: str) -> None:
+    result = t("summary.authenticated_as", lang, display_name="Jane", account_id="abc123")
+    assert "Jane" in result
+    assert "abc123" in result
