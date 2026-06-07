@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jwe"
-version = "1.0.0"
-description = "Jira Cloud Worklog Exporter — CSV export of user worklogs from a Jira Cloud site"
+dynamic = ["version"]
+description ="Jira Cloud Worklog Exporter — CSV export of user worklogs from a Jira Cloud site"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Martin" }]
@@ -58,6 +58,9 @@ jwe-gui = "jwe.gui_main:main"
 Homepage = "https://github.com/elementfortyseven/jira-worklog-exporter"
 Documentation = "https://github.com/elementfortyseven/jira-worklog-exporter/blob/main/docs/PRD_Jira_Worklog_Exporter.md"
 Issues = "https://github.com/elementfortyseven/jira-worklog-exporter/issues"
+
+[tool.hatch.version]
+path = "src/jwe/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jwe"]

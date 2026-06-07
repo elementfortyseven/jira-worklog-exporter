@@ -11,4 +11,4 @@ The package is structured into:
 - ``jwe.cli`` / ``jwe.gui``: User-facing entry points.
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.1"
