@@ -11,12 +11,14 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QWidget,
 )
 
 from jwe.config import ColumnProfile
+from jwe.i18n import DEFAULT_LANG, t
 
 _DEFAULT_OUTPUT_DIR = "./exports"
 _S = "output"
@@ -28,7 +30,8 @@ class OutputWidget(QGroupBox):
     validation_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__("Output", parent)  # i18n: section.output.title
+        super().__init__(t("section.output.title", DEFAULT_LANG), parent)
+        self._lang: str = DEFAULT_LANG
         Path(_DEFAULT_OUTPUT_DIR).mkdir(exist_ok=True)
         self._build_ui()
 
@@ -44,16 +47,18 @@ class OutputWidget(QGroupBox):
         dir_layout = QHBoxLayout(dir_row)
         dir_layout.setContentsMargins(0, 0, 0, 0)
         self.output_dir_field = QLineEdit(_DEFAULT_OUTPUT_DIR)
-        self.browse_btn = QPushButton("Browse...")  # i18n: output.btn.browse
+        self.browse_btn = QPushButton()
         self.browse_btn.setFixedWidth(80)
         dir_layout.addWidget(self.output_dir_field, 1)
         dir_layout.addWidget(self.browse_btn)
-        layout.addRow("Output Dir", dir_row)  # i18n: output.label.output_dir
+        self._lbl_output_dir = QLabel()
+        layout.addRow(self._lbl_output_dir, dir_row)
 
         self.delimiter_combo = QComboBox()
-        self.delimiter_combo.addItem(", (Comma)", ",")     # i18n: output.delimiter.comma
-        self.delimiter_combo.addItem("; (Semicolon)", ";")  # i18n: output.delimiter.semicolon
-        layout.addRow("Delimiter", self.delimiter_combo)   # i18n: output.label.delimiter
+        self.delimiter_combo.addItem("", ",")
+        self.delimiter_combo.addItem("", ";")
+        self._lbl_delimiter = QLabel()
+        layout.addRow(self._lbl_delimiter, self.delimiter_combo)
 
         self.column_profile_combo = QComboBox()
         for profile in ColumnProfile:
@@ -61,15 +66,19 @@ class OutputWidget(QGroupBox):
         self.column_profile_combo.setCurrentIndex(
             self.column_profile_combo.findData(ColumnProfile.STANDARD.value)
         )
-        layout.addRow("Profile", self.column_profile_combo)  # i18n: output.label.profile
+        self._lbl_profile = QLabel()
+        layout.addRow(self._lbl_profile, self.column_profile_combo)
 
         self.api_version_combo = QComboBox()
         self.api_version_combo.addItem("3", 3)
         self.api_version_combo.addItem("2", 2)
-        layout.addRow("API Version", self.api_version_combo)  # i18n: output.label.api_version
+        self._lbl_api_version = QLabel()
+        layout.addRow(self._lbl_api_version, self.api_version_combo)
 
         self.output_dir_field.textChanged.connect(lambda _: self.validation_changed.emit())
         self.browse_btn.clicked.connect(self._on_browse)
+
+        self.retranslate_ui(DEFAULT_LANG)
 
     # ------------------------------------------------------------------
     # Slots
@@ -77,7 +86,7 @@ class OutputWidget(QGroupBox):
 
     def _on_browse(self) -> None:
         chosen = QFileDialog.getExistingDirectory(
-            self, "Select output directory"  # i18n: output.browse_dialog.title
+            self, t("output.browse_dialog.title", self._lang)
         )
         if chosen:
             self.output_dir_field.setText(chosen)
@@ -129,3 +138,12 @@ class OutputWidget(QGroupBox):
 
     def retranslate_ui(self, lang: str) -> None:
         """Update all translatable strings for *lang*."""
+        self._lang = lang
+        self.setTitle(t("section.output.title", lang))
+        self._lbl_output_dir.setText(t("output.label.output_dir", lang))
+        self._lbl_delimiter.setText(t("output.label.delimiter", lang))
+        self._lbl_profile.setText(t("output.label.profile", lang))
+        self._lbl_api_version.setText(t("output.label.api_version", lang))
+        self.browse_btn.setText(t("output.btn.browse", lang))
+        self.delimiter_combo.setItemText(0, t("output.delimiter.comma", lang))
+        self.delimiter_combo.setItemText(1, t("output.delimiter.semicolon", lang))

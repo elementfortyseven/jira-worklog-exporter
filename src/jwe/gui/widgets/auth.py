@@ -28,6 +28,7 @@ from jwe.api.auth import AuthHeaderStyle, AuthMode
 from jwe.config import ExportConfig
 from jwe.gui.workers.cloud_id_discover import CloudIdDiscoverWorker
 from jwe.gui.workers.connection_test import ConnectionTestWorker
+from jwe.i18n import DEFAULT_LANG, t
 
 logger = logging.getLogger(__name__)
 
@@ -52,45 +53,50 @@ class ServiceAccountPanel(QWidget):
         url_layout = QHBoxLayout(url_row)
         url_layout.setContentsMargins(0, 0, 0, 0)
         self.discovery_url_field = QLineEdit()
-        self.discovery_url_field.setPlaceholderText(
-            "https://your-company.atlassian.net"  # i18n: auth.sa.discovery_url.placeholder
-        )
-        self.discover_btn = QPushButton("Discover")  # i18n: auth.btn.discover_cloud_id
+        self.discover_btn = QPushButton()
         self.discover_btn.setFixedWidth(80)
         url_layout.addWidget(self.discovery_url_field, 1)
         url_layout.addWidget(self.discover_btn)
-        layout.addRow("Site URL", url_row)  # i18n: auth.sa.label.site_url
+        self._lbl_site_url = QLabel()
+        layout.addRow(self._lbl_site_url, url_row)
 
         self.cloud_id_field = QLineEdit()
-        self.cloud_id_field.setPlaceholderText(
-            "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # i18n: auth.sa.cloud_id.placeholder
-        )
-        layout.addRow("Cloud ID", self.cloud_id_field)  # i18n: auth.sa.label.cloud_id
+        self._lbl_cloud_id = QLabel()
+        layout.addRow(self._lbl_cloud_id, self.cloud_id_field)
 
         self.email_field = QLineEdit()
-        self.email_field.setPlaceholderText(
-            "bot@serviceaccount.atlassian.com"  # i18n: auth.sa.email.placeholder
-        )
-        layout.addRow("Email", self.email_field)  # i18n: auth.sa.label.email
+        self._lbl_email = QLabel()
+        layout.addRow(self._lbl_email, self.email_field)
 
         self.token_field = QLineEdit()
         self.token_field.setEchoMode(QLineEdit.EchoMode.Password)
-        self.token_field.setPlaceholderText(
-            "API token with required scopes"  # i18n: auth.sa.token.placeholder
-        )
-        layout.addRow("API Token", self.token_field)  # i18n: auth.sa.label.token
+        self._lbl_token = QLabel()
+        layout.addRow(self._lbl_token, self.token_field)
 
         self.auth_header_combo = QComboBox()
         self.auth_header_combo.addItem("Basic", AuthHeaderStyle.BASIC.value)
         self.auth_header_combo.addItem("Bearer", AuthHeaderStyle.BEARER.value)
-        layout.addRow("Auth Header", self.auth_header_combo)  # i18n: auth.sa.label.auth_header
+        self._lbl_auth_header = QLabel()
+        layout.addRow(self._lbl_auth_header, self.auth_header_combo)
 
         self.discover_btn.clicked.connect(
             lambda: self.discover_requested.emit(self.discovery_url_field.text().strip())
         )
 
+        self.retranslate_ui(DEFAULT_LANG)
+
     def retranslate_ui(self, lang: str) -> None:
         """Update translatable strings for *lang*."""
+        self._lbl_site_url.setText(t("auth.sa.label.site_url", lang))
+        self._lbl_cloud_id.setText(t("auth.sa.label.cloud_id", lang))
+        self._lbl_email.setText(t("auth.sa.label.email", lang))
+        self._lbl_token.setText(t("auth.sa.label.token", lang))
+        self._lbl_auth_header.setText(t("auth.sa.label.auth_header", lang))
+        self.discovery_url_field.setPlaceholderText(t("auth.sa.discovery_url.placeholder", lang))
+        self.cloud_id_field.setPlaceholderText(t("auth.sa.cloud_id.placeholder", lang))
+        self.email_field.setPlaceholderText(t("auth.sa.email.placeholder", lang))
+        self.token_field.setPlaceholderText(t("auth.sa.token.placeholder", lang))
+        self.discover_btn.setText(t("auth.btn.discover_cloud_id", lang))
 
 
 class UserTokenPanel(QWidget):
@@ -105,26 +111,28 @@ class UserTokenPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.site_url_field = QLineEdit()
-        self.site_url_field.setPlaceholderText(
-            "https://your-company.atlassian.net"  # i18n: auth.user.site_url.placeholder
-        )
-        layout.addRow("Site URL", self.site_url_field)  # i18n: auth.user.label.site_url
+        self._lbl_site_url = QLabel()
+        layout.addRow(self._lbl_site_url, self.site_url_field)
 
         self.email_field = QLineEdit()
-        self.email_field.setPlaceholderText(
-            "you@example.com"  # i18n: auth.user.email.placeholder
-        )
-        layout.addRow("Email", self.email_field)  # i18n: auth.user.label.email
+        self._lbl_email = QLabel()
+        layout.addRow(self._lbl_email, self.email_field)
 
         self.token_field = QLineEdit()
         self.token_field.setEchoMode(QLineEdit.EchoMode.Password)
-        self.token_field.setPlaceholderText(
-            "Personal API token"  # i18n: auth.user.token.placeholder
-        )
-        layout.addRow("API Token", self.token_field)  # i18n: auth.user.label.token
+        self._lbl_token = QLabel()
+        layout.addRow(self._lbl_token, self.token_field)
+
+        self.retranslate_ui(DEFAULT_LANG)
 
     def retranslate_ui(self, lang: str) -> None:
         """Update translatable strings for *lang*."""
+        self._lbl_site_url.setText(t("auth.user.label.site_url", lang))
+        self._lbl_email.setText(t("auth.user.label.email", lang))
+        self._lbl_token.setText(t("auth.user.label.token", lang))
+        self.site_url_field.setPlaceholderText(t("auth.user.site_url.placeholder", lang))
+        self.email_field.setPlaceholderText(t("auth.user.email.placeholder", lang))
+        self.token_field.setPlaceholderText(t("auth.user.token.placeholder", lang))
 
 
 class AuthWidget(QGroupBox):
@@ -140,7 +148,8 @@ class AuthWidget(QGroupBox):
         *,
         service: Any = None,
     ) -> None:
-        super().__init__("Authentication", parent)  # i18n: section.auth.title
+        super().__init__(t("section.auth.title", DEFAULT_LANG), parent)
+        self._lang: str = DEFAULT_LANG
         self._svc: Any = service if service is not None else _default_svc
         self._conn_thread: QThread | None = None
         self._conn_worker: ConnectionTestWorker | None = None
@@ -163,8 +172,8 @@ class AuthWidget(QGroupBox):
         mode_row = QWidget()
         mode_layout = QHBoxLayout(mode_row)
         mode_layout.setContentsMargins(0, 0, 0, 0)
-        self.sa_radio = QRadioButton("Service Account")      # i18n: auth.radio.service_account
-        self.user_radio = QRadioButton("Personal API Token") # i18n: auth.radio.user_token
+        self.sa_radio = QRadioButton()
+        self.user_radio = QRadioButton()
         self._mode_group = QButtonGroup(self)
         self._mode_group.addButton(self.sa_radio, 0)
         self._mode_group.addButton(self.user_radio, 1)
@@ -186,7 +195,7 @@ class AuthWidget(QGroupBox):
         keyring_row = QWidget()
         keyring_layout = QHBoxLayout(keyring_row)
         keyring_layout.setContentsMargins(0, 0, 0, 0)
-        self.save_token_cb = QCheckBox("Save token to keyring")  # i18n: auth.checkbox.save_token
+        self.save_token_cb = QCheckBox()
         self.keyring_info_label = QLabel("")
         self.keyring_info_label.setVisible(False)
         keyring_layout.addWidget(self.save_token_cb)
@@ -198,7 +207,7 @@ class AuthWidget(QGroupBox):
         test_row = QWidget()
         test_layout = QHBoxLayout(test_row)
         test_layout.setContentsMargins(0, 0, 0, 0)
-        self.test_btn = QPushButton("Test Connection")  # i18n: auth.btn.test_connection
+        self.test_btn = QPushButton()
         self.status_label = QLabel("")
         test_layout.addWidget(self.test_btn)
         test_layout.addWidget(self.status_label, 1)
@@ -218,6 +227,8 @@ class AuthWidget(QGroupBox):
         self.user_panel.email_field.textChanged.connect(lambda _: self._on_field_changed())
         self.user_panel.token_field.textChanged.connect(lambda _: self._on_field_changed())
         self._mode_group.idClicked.connect(lambda _: self._on_field_changed())
+
+        self.retranslate_ui(DEFAULT_LANG)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -299,7 +310,7 @@ class AuthWidget(QGroupBox):
                 self.save_token_cb.setChecked(True)
         except RuntimeError:
             self.save_token_cb.setEnabled(False)
-            self.keyring_info_label.setText("Keyring unavailable")  # i18n: auth.keyring.unavailable
+            self.keyring_info_label.setText(t("auth.keyring.unavailable", self._lang))
             self.keyring_info_label.setVisible(True)
 
     # ------------------------------------------------------------------
@@ -332,7 +343,7 @@ class AuthWidget(QGroupBox):
 
     def _on_test_connection_clicked(self) -> None:
         self.test_btn.setEnabled(False)
-        self.status_label.setText("Testing...")  # i18n: auth.status.testing
+        self.status_label.setText(t("auth.status.testing", self._lang))
         config = self.get_export_config_partial()
         self._last_test_config = config  # stored so _on_conn_finished can emit it
         worker = ConnectionTestWorker(config, self._svc.test_connection)
@@ -352,7 +363,7 @@ class AuthWidget(QGroupBox):
 
     def _on_conn_finished(self, display_name: str, email: str) -> None:
         self.status_label.setText(
-            f"Connected as {display_name} ({email})"  # i18n: auth.status.connected
+            t("auth.status.connected", self._lang, display_name=display_name, email=email)
         )
         if self.save_token_cb.isChecked():
             identifier = self._current_identifier()
@@ -399,12 +410,12 @@ class AuthWidget(QGroupBox):
     def _on_discovered(self, cloud_id: str) -> None:
         self.sa_panel.cloud_id_field.setText(cloud_id)
         self.status_label.setText(
-            f"Cloud ID found: {cloud_id}"  # i18n: auth.status.cloud_id_found
+            t("auth.status.cloud_id_found", self._lang, cloud_id=cloud_id)
         )
 
     def _on_discover_failed(self, message: str) -> None:
         self.status_label.setText(
-            f"Discovery failed: {message}"  # i18n: auth.status.discovery_failed
+            t("auth.status.discovery_failed", self._lang, message=message)
         )
 
     def _on_disc_worker_done(self) -> None:
@@ -429,7 +440,7 @@ class AuthWidget(QGroupBox):
 
     def stop_running_threads(self) -> None:
         # TODO etappe 5b: graceful cancel for export worker
-        threads = [t for t in (self._conn_thread, self._disc_thread) if t is not None and t.isRunning()]
+        threads = [th for th in (self._conn_thread, self._disc_thread) if th is not None and th.isRunning()]
         for thread in threads:
             thread.quit()
         for thread in threads:
@@ -485,5 +496,13 @@ class AuthWidget(QGroupBox):
 
     def retranslate_ui(self, lang: str) -> None:
         """Update translatable strings for *lang*."""
+        self._lang = lang
+        self.setTitle(t("section.auth.title", lang))
+        self.sa_radio.setText(t("auth.radio.service_account", lang))
+        self.user_radio.setText(t("auth.radio.user_token", lang))
+        self.save_token_cb.setText(t("auth.checkbox.save_token", lang))
+        self.test_btn.setText(t("auth.btn.test_connection", lang))
+        if self.keyring_info_label.isVisible():
+            self.keyring_info_label.setText(t("auth.keyring.unavailable", lang))
         self.sa_panel.retranslate_ui(lang)
         self.user_panel.retranslate_ui(lang)

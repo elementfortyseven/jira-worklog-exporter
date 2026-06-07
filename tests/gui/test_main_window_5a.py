@@ -215,7 +215,7 @@ class TestExportBtnReenabledAfterFailed:
             lambda: mw.status_widget.export_btn.isEnabled(), timeout=3000
         )
 
-        assert "Error" in mw.status_widget.log_panel.toPlainText()
+        assert "network timeout" in mw.status_widget.log_panel.toPlainText()
 
 
 # ---------------------------------------------------------------------------

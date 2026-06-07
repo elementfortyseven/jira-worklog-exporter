@@ -9,9 +9,12 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QFormLayout,
     QGroupBox,
+    QLabel,
     QLineEdit,
     QWidget,
 )
+
+from jwe.i18n import DEFAULT_LANG, t
 
 # Same pattern as config.py and search.py -- do not diverge.
 _PROJECT_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+$")
@@ -25,7 +28,7 @@ class FilterWidget(QGroupBox):
     validation_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__("Date & Project Filter", parent)  # i18n: section.filter.title
+        super().__init__(t("section.filter.title", DEFAULT_LANG), parent)
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -43,22 +46,24 @@ class FilterWidget(QGroupBox):
         self.from_date = QDateEdit(first_of_month)
         self.from_date.setCalendarPopup(True)
         self.from_date.setDisplayFormat("yyyy-MM-dd")
-        layout.addRow("From", self.from_date)  # i18n: filter.label.from
+        self._lbl_from = QLabel()
+        layout.addRow(self._lbl_from, self.from_date)
 
         self.to_date = QDateEdit(last_of_month)
         self.to_date.setCalendarPopup(True)
         self.to_date.setDisplayFormat("yyyy-MM-dd")
-        layout.addRow("To", self.to_date)  # i18n: filter.label.to
+        self._lbl_to = QLabel()
+        layout.addRow(self._lbl_to, self.to_date)
 
         self.project_keys_field = QLineEdit()
-        self.project_keys_field.setPlaceholderText(
-            "PROJ, SUPP (optional)"  # i18n: filter.project_keys.placeholder
-        )
-        layout.addRow("Projects", self.project_keys_field)  # i18n: filter.label.projects
+        self._lbl_projects = QLabel()
+        layout.addRow(self._lbl_projects, self.project_keys_field)
 
         self.from_date.dateChanged.connect(lambda _: self.validation_changed.emit())
         self.to_date.dateChanged.connect(lambda _: self.validation_changed.emit())
         self.project_keys_field.textChanged.connect(lambda _: self.validation_changed.emit())
+
+        self.retranslate_ui(DEFAULT_LANG)
 
     # ------------------------------------------------------------------
     # Validation
@@ -82,7 +87,7 @@ class FilterWidget(QGroupBox):
         raw = self.project_keys_field.text().strip()
         if not raw:
             return []
-        return [t.strip() for t in raw.split(",") if t.strip()]
+        return [tok.strip() for tok in raw.split(",") if tok.strip()]
 
     # ------------------------------------------------------------------
     # Settings
@@ -101,3 +106,8 @@ class FilterWidget(QGroupBox):
 
     def retranslate_ui(self, lang: str) -> None:
         """Update all translatable strings for *lang*."""
+        self.setTitle(t("section.filter.title", lang))
+        self._lbl_from.setText(t("filter.label.from", lang))
+        self._lbl_to.setText(t("filter.label.to", lang))
+        self._lbl_projects.setText(t("filter.label.projects", lang))
+        self.project_keys_field.setPlaceholderText(t("filter.project_keys.placeholder", lang))

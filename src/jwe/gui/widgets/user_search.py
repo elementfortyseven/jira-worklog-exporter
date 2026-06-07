@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from jwe.api.user import User
 from jwe.gui.workers.user_search import UserSearchWorker
+from jwe.i18n import DEFAULT_LANG, t
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,8 @@ class UserSearchWidget(QGroupBox):
         *,
         search_fn: Callable[[str], list[User]] | None = None,
     ) -> None:
-        super().__init__("Users", parent)  # i18n: section.user_search.title
+        super().__init__(t("section.user_search.title", DEFAULT_LANG), parent)
+        self._lang: str = DEFAULT_LANG
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
         self._debounce_timer.setInterval(400)
@@ -68,7 +70,6 @@ class UserSearchWidget(QGroupBox):
 
         # Search field
         self.search_field = QLineEdit()
-        self.search_field.setPlaceholderText("Search users...")  # i18n: user_search.search.placeholder
         outer.addWidget(self.search_field)
 
         # Status label sits directly under the search field
@@ -91,10 +92,10 @@ class UserSearchWidget(QGroupBox):
         btn_layout = QVBoxLayout(btn_widget)
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        self.btn_add_one = QPushButton(">")   # i18n: user_search.btn.add_one
-        self.btn_add_all = QPushButton(">>")  # i18n: user_search.btn.add_all
-        self.btn_rem_one = QPushButton("<")   # i18n: user_search.btn.rem_one
-        self.btn_rem_all = QPushButton("<<")  # i18n: user_search.btn.rem_all
+        self.btn_add_one = QPushButton()
+        self.btn_add_all = QPushButton()
+        self.btn_rem_one = QPushButton()
+        self.btn_rem_all = QPushButton()
         for btn in (self.btn_add_one, self.btn_add_all, self.btn_rem_one, self.btn_rem_all):
             btn.setFixedWidth(40)
             btn_layout.addWidget(btn)
@@ -115,6 +116,8 @@ class UserSearchWidget(QGroupBox):
         self.btn_rem_all.clicked.connect(self._move_rem_all)
         self.results_list.itemDoubleClicked.connect(self._on_result_double_clicked)
         self.selected_list.itemDoubleClicked.connect(self._on_selected_double_clicked)
+
+        self.retranslate_ui(DEFAULT_LANG)
 
     # ------------------------------------------------------------------
     # Debounce / search
@@ -137,7 +140,7 @@ class UserSearchWidget(QGroupBox):
         if not query:
             return
         self._ensure_thread_started()
-        self.search_status_label.setText("Searching...")  # i18n: user_search.status.searching
+        self.search_status_label.setText(t("user_search.status.searching", self._lang))
         self._search_worker.query_requested.emit(query)
 
     def _on_search_results(self, users: list[User]) -> None:
@@ -278,3 +281,10 @@ class UserSearchWidget(QGroupBox):
 
     def retranslate_ui(self, lang: str) -> None:
         """Update translatable strings for *lang*."""
+        self._lang = lang
+        self.setTitle(t("section.user_search.title", lang))
+        self.search_field.setPlaceholderText(t("user_search.search.placeholder", lang))
+        self.btn_add_one.setText(t("user_search.btn.add_one", lang))
+        self.btn_add_all.setText(t("user_search.btn.add_all", lang))
+        self.btn_rem_one.setText(t("user_search.btn.rem_one", lang))
+        self.btn_rem_all.setText(t("user_search.btn.rem_all", lang))

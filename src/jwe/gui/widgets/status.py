@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from jwe.i18n import DEFAULT_LANG, t
+
 
 class StatusWidget(QWidget):
     """Export button, cancel button, status label, progress bar, counters, log panel, and result buttons."""
@@ -23,6 +25,9 @@ class StatusWidget(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._lang: str = DEFAULT_LANG
+        self._issues_seen: int = 0
+        self._worklogs_written: int = 0
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -34,14 +39,14 @@ class StatusWidget(QWidget):
         btn_row = QWidget()
         btn_layout = QHBoxLayout(btn_row)
         btn_layout.setContentsMargins(0, 0, 0, 0)
-        self.export_btn = QPushButton("Start Export")  # i18n: status.btn.export
+        self.export_btn = QPushButton()
         self.export_btn.setEnabled(False)
         btn_layout.addWidget(self.export_btn)
-        self.cancel_btn = QPushButton("Abbrechen")  # i18n: status.btn.cancel
+        self.cancel_btn = QPushButton()
         self.cancel_btn.setVisible(False)
         self.cancel_btn.clicked.connect(self.cancel_requested)
         btn_layout.addWidget(self.cancel_btn)
-        self.status_label = QLabel("Fill in required fields")  # i18n: status.label.not_ready
+        self.status_label = QLabel(t("status.label.not_ready", DEFAULT_LANG))
         btn_layout.addWidget(self.status_label, 1)
         outer.addWidget(btn_row)
 
@@ -49,8 +54,8 @@ class StatusWidget(QWidget):
         self._counter_row = QWidget()
         counter_layout = QHBoxLayout(self._counter_row)
         counter_layout.setContentsMargins(0, 0, 0, 0)
-        self.issue_label = QLabel("Issues: 0")      # i18n: status.counter.issues_n
-        self.worklog_label = QLabel("Worklogs: 0")  # i18n: status.counter.worklogs_n
+        self.issue_label = QLabel()
+        self.worklog_label = QLabel()
         counter_layout.addWidget(self.issue_label)
         counter_layout.addWidget(self.worklog_label)
         counter_layout.addStretch()
@@ -76,13 +81,15 @@ class StatusWidget(QWidget):
         self._result_row = QWidget()
         result_layout = QHBoxLayout(self._result_row)
         result_layout.setContentsMargins(0, 0, 0, 0)
-        self.open_csv_btn = QPushButton("CSV oeffnen")       # i18n: status.btn.open_csv
-        self.open_folder_btn = QPushButton("Ordner oeffnen") # i18n: status.btn.open_folder
+        self.open_csv_btn = QPushButton()
+        self.open_folder_btn = QPushButton()
         result_layout.addWidget(self.open_csv_btn)
         result_layout.addWidget(self.open_folder_btn)
         result_layout.addStretch()
         self._result_row.setVisible(False)
         outer.addWidget(self._result_row)
+
+        self.retranslate_ui(DEFAULT_LANG)
 
     # ------------------------------------------------------------------
     # Public API (called by MainWindow._update_export_btn)
@@ -100,8 +107,10 @@ class StatusWidget(QWidget):
 
     def start_progress_display(self) -> None:
         """Show progress widgets, reset values, and start the progress bar marquee."""
-        self.issue_label.setText("Issues: 0")      # i18n: status.counter.issues_n
-        self.worklog_label.setText("Worklogs: 0")  # i18n: status.counter.worklogs_n
+        self._issues_seen = 0
+        self._worklogs_written = 0
+        self.issue_label.setText(t("status.counter.issues_n", self._lang, n=0))
+        self.worklog_label.setText(t("status.counter.worklogs_n", self._lang, n=0))
         self.log_panel.clear()
         self.progress_bar.setRange(0, 0)           # (re-)start marquee animation
         self._counter_row.setVisible(True)
@@ -122,8 +131,10 @@ class StatusWidget(QWidget):
         self.log_panel.setVisible(False)
         self.progress_bar.setRange(0, 1)
         self.progress_bar.setValue(0)
-        self.issue_label.setText("Issues: 0")      # i18n: status.counter.issues_n
-        self.worklog_label.setText("Worklogs: 0")  # i18n: status.counter.worklogs_n
+        self._issues_seen = 0
+        self._worklogs_written = 0
+        self.issue_label.setText(t("status.counter.issues_n", self._lang, n=0))
+        self.worklog_label.setText(t("status.counter.worklogs_n", self._lang, n=0))
         self.log_panel.clear()
         self.cancel_btn.setVisible(False)
         self._result_row.setVisible(False)
@@ -151,8 +162,10 @@ class StatusWidget(QWidget):
     # ------------------------------------------------------------------
 
     def on_progress_updated(self, issues_seen: int, worklogs_written: int) -> None:
-        self.issue_label.setText(f"Issues: {issues_seen}")         # i18n: status.counter.issues_n
-        self.worklog_label.setText(f"Worklogs: {worklogs_written}")  # i18n: status.counter.worklogs_n
+        self._issues_seen = issues_seen
+        self._worklogs_written = worklogs_written
+        self.issue_label.setText(t("status.counter.issues_n", self._lang, n=issues_seen))
+        self.worklog_label.setText(t("status.counter.worklogs_n", self._lang, n=worklogs_written))
 
     def append_log_line(self, text: str) -> None:
         """Append *text* to the log panel; keep at most _MAX_LOG_LINES lines."""
@@ -171,3 +184,11 @@ class StatusWidget(QWidget):
 
     def retranslate_ui(self, lang: str) -> None:
         """Update all translatable strings for *lang*."""
+        self._lang = lang
+        self.export_btn.setText(t("status.btn.export", lang))
+        self.cancel_btn.setText(t("status.btn.cancel", lang))
+        self.open_csv_btn.setText(t("status.btn.open_csv", lang))
+        self.open_folder_btn.setText(t("status.btn.open_folder", lang))
+        self.issue_label.setText(t("status.counter.issues_n", lang, n=self._issues_seen))
+        self.worklog_label.setText(t("status.counter.worklogs_n", lang, n=self._worklogs_written))
+        # status_label is managed by MainWindow via set_status_text; not retranslated here

@@ -28,6 +28,7 @@ from jwe.gui.widgets.output import OutputWidget
 from jwe.gui.widgets.status import StatusWidget
 from jwe.gui.widgets.user_search import UserSearchWidget
 from jwe.gui.workers.export_worker import ExportWorker
+from jwe.i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._restore_settings(initial_lang)
         self._update_export_btn()
+        self._retranslate_all(self._lang)
         self.status_widget.export_btn.clicked.connect(self._on_export_clicked)
 
     # ------------------------------------------------------------------
@@ -99,7 +101,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        self.setWindowTitle("Jira Worklog Exporter")  # i18n: app.title
+        self.setWindowTitle(t("app.title", self._lang))
         self.setMinimumSize(800, 600)
         self.resize(960, 720)
 
@@ -226,9 +228,9 @@ class MainWindow(QMainWindow):
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
         msg = (
-            f"Export complete. Output: {output_path}"  # i18n: status.log.export_complete
+            t("status.log.export_complete", self._lang, path=output_path)
             if output_path
-            else "Dry run complete."                   # i18n: status.log.dry_run_complete
+            else t("status.log.dry_run_complete", self._lang)
         )
         self.status_widget.append_log_line(msg)
         if output_path:
@@ -239,27 +241,27 @@ class MainWindow(QMainWindow):
         self._export_active = False
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
-        self.status_widget.append_log_line(f"Error: {message}")  # i18n: status.log.error
+        self.status_widget.append_log_line(t("status.log.error", self._lang, message=message))
         self._update_export_btn()
 
     def _on_cancel_clicked(self) -> None:
         if self._cancel_event is not None:
             self._cancel_event.set()
         self.status_widget.disable_cancel_btn()
-        self.status_widget.append_log_line("Abbruch wird durchgefuehrt...")  # i18n: status.log.cancelling
+        self.status_widget.append_log_line(t("status.log.cancelling", self._lang))
 
     def _on_export_cancelled(self) -> None:
         self._export_active = False
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
-        self.status_widget.append_log_line("Export abgebrochen.")  # i18n: status.log.cancelled
+        self.status_widget.append_log_line(t("status.log.cancelled", self._lang))
         self._update_export_btn()
 
     def _confirm_close_during_export(self) -> bool:
         reply = QMessageBox.question(
             self,
-            "Export laeuft",  # i18n: dialog.close_during_export.title
-            "Export laeuft. Abbrechen und schliessen?",  # i18n: dialog.close_during_export.text
+            t("dialog.close_during_export.title", self._lang),
+            t("dialog.close_during_export.text", self._lang),
         )
         return reply == QMessageBox.StandardButton.Yes
 
@@ -300,9 +302,9 @@ class MainWindow(QMainWindow):
         )
         self.status_widget.set_export_enabled(ok)
         if ok:
-            self.status_widget.set_status_text("Ready to export")      # i18n: status.label.ready
+            self.status_widget.set_status_text(t("status.label.ready", self._lang))
         else:
-            self.status_widget.set_status_text("Fill in required fields")  # i18n: status.label.not_ready
+            self.status_widget.set_status_text(t("status.label.not_ready", self._lang))
 
     # ------------------------------------------------------------------
     # Language toggle
@@ -319,8 +321,10 @@ class MainWindow(QMainWindow):
         self._retranslate_all(self._lang)
 
     def _retranslate_all(self, lang: str) -> None:
+        self.setWindowTitle(t("app.title", lang))
         self.auth_widget.retranslate_ui(lang)
         self.user_search_widget.retranslate_ui(lang)
         self.filter_widget.retranslate_ui(lang)
         self.output_widget.retranslate_ui(lang)
         self.status_widget.retranslate_ui(lang)
+        self._update_export_btn()  # retranslates the status label for current ready/not_ready state
