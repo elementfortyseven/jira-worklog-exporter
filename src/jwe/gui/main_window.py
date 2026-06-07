@@ -28,7 +28,7 @@ from jwe.gui.widgets.output import OutputWidget
 from jwe.gui.widgets.status import StatusWidget
 from jwe.gui.widgets.user_search import UserSearchWidget
 from jwe.gui.workers.export_worker import ExportWorker
-from jwe.i18n import t
+from jwe.i18n import diag, t
 
 logger = logging.getLogger(__name__)
 
@@ -228,9 +228,9 @@ class MainWindow(QMainWindow):
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
         msg = (
-            t("status.log.export_complete", self._lang, path=output_path)
+            diag("status.log.export_complete", path=output_path)
             if output_path
-            else t("status.log.dry_run_complete", self._lang)
+            else diag("status.log.dry_run_complete")
         )
         self.status_widget.append_log_line(msg)
         if output_path:
@@ -241,20 +241,20 @@ class MainWindow(QMainWindow):
         self._export_active = False
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
-        self.status_widget.append_log_line(t("status.log.error", self._lang, message=message))
+        self.status_widget.append_log_line(diag("status.log.error", message=message))
         self._update_export_btn()
 
     def _on_cancel_clicked(self) -> None:
         if self._cancel_event is not None:
             self._cancel_event.set()
         self.status_widget.disable_cancel_btn()
-        self.status_widget.append_log_line(t("status.log.cancelling", self._lang))
+        self.status_widget.append_log_line(diag("status.log.cancelling"))
 
     def _on_export_cancelled(self) -> None:
         self._export_active = False
         self.status_widget.on_progress_done()
         self.status_widget.hide_cancel_btn()
-        self.status_widget.append_log_line(t("status.log.cancelled", self._lang))
+        self.status_widget.append_log_line(diag("status.log.cancelled"))
         self._update_export_btn()
 
     def _confirm_close_during_export(self) -> bool:

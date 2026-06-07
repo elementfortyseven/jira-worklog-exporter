@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from jwe.i18n import DEFAULT_LANG, STRINGS, t
+from jwe.i18n import DEFAULT_LANG, DIAGNOSTICS, STRINGS, diag, t
 
 
 def test_default_lang_is_en() -> None:
@@ -11,24 +11,25 @@ def test_default_lang_is_en() -> None:
 
 
 def test_en_returns_english_content() -> None:
-    assert "Authentication failed" in t("error.auth_failed", "en")
+    assert "Authentication" in t("section.auth.title", "en")
 
 
 def test_de_returns_german_content() -> None:
-    assert "Authentifizierung fehlgeschlagen" in t("error.auth_failed", "de")
+    assert "Authentifizierung" in t("section.auth.title", "de")
 
 
 def test_de_differs_from_en() -> None:
-    assert t("error.auth_failed", "de") != t("error.auth_failed", "en")
+    assert t("section.auth.title", "de") != t("section.auth.title", "en")
 
 
 def test_format_substitution_en() -> None:
-    result = t("error.api_failed", "en", detail=403)
+    result = diag("error.api_failed", detail=403)
     assert "403" in result
 
 
 def test_format_substitution_de() -> None:
-    assert "500" in t("error.api_failed", "de", detail=500)
+    result = t("auth.status.connected", "de", display_name="Max", email="max@de")
+    assert "Max" in result
 
 
 def test_key_without_placeholder_no_error() -> None:
@@ -37,12 +38,12 @@ def test_key_without_placeholder_no_error() -> None:
 
 
 def test_no_kwargs_returns_raw_template() -> None:
-    raw = t("error.auth_failed", "en")
-    assert "{detail}" in raw
+    raw = t("summary.complete", "en")
+    assert "{count}" in raw
 
 
 def test_unknown_lang_falls_back_to_en() -> None:
-    assert t("error.auth_failed", "fr") == t("error.auth_failed", "en")
+    assert t("section.auth.title", "fr") == t("section.auth.title", "en")
 
 
 def test_unknown_key_raises_keyerror() -> None:
@@ -52,7 +53,7 @@ def test_unknown_key_raises_keyerror() -> None:
 
 
 def test_key_parity_en_de() -> None:
-    """Both language tables must have identical key sets — prevents drift."""
+    """Both language tables must have identical key sets -- prevents drift."""
     assert set(STRINGS["en"].keys()) == set(STRINGS["de"].keys())
 
 
@@ -99,7 +100,6 @@ def test_section_keys_resolve(key: str, lang: str) -> None:
     "auth.btn.discover_cloud_id",
     "auth.btn.test_connection",
     "auth.checkbox.save_token",
-    "auth.keyring.unavailable",
     "auth.status.testing",
 ])
 def test_auth_keys_resolve(key: str, lang: str) -> None:
@@ -119,9 +119,8 @@ def test_auth_status_cloud_id_found_resolves(lang: str) -> None:
     assert "abc-123" in result
 
 
-@pytest.mark.parametrize("lang", ["en", "de"])
-def test_auth_status_discovery_failed_resolves(lang: str) -> None:
-    result = t("auth.status.discovery_failed", lang, message="timeout")
+def test_auth_status_discovery_failed_resolves() -> None:
+    result = diag("auth.status.discovery_failed", message="timeout")
     assert "timeout" in result
 
 
@@ -175,9 +174,6 @@ def test_user_search_keys_resolve(key: str, lang: str) -> None:
     "status.btn.open_folder",
     "status.label.ready",
     "status.label.not_ready",
-    "status.log.dry_run_complete",
-    "status.log.cancelling",
-    "status.log.cancelled",
 ])
 def test_status_keys_resolve(key: str, lang: str) -> None:
     result = t(key, lang)
@@ -196,15 +192,13 @@ def test_status_counter_worklogs_resolves(lang: str) -> None:
     assert "7" in result
 
 
-@pytest.mark.parametrize("lang", ["en", "de"])
-def test_status_log_export_complete_resolves(lang: str) -> None:
-    result = t("status.log.export_complete", lang, path="/out/file.csv")
+def test_status_log_export_complete_resolves() -> None:
+    result = diag("status.log.export_complete", path="/out/file.csv")
     assert "/out/file.csv" in result
 
 
-@pytest.mark.parametrize("lang", ["en", "de"])
-def test_status_log_error_resolves(lang: str) -> None:
-    result = t("status.log.error", lang, message="something went wrong")
+def test_status_log_error_resolves() -> None:
+    result = diag("status.log.error", message="something went wrong")
     assert "something went wrong" in result
 
 
@@ -219,22 +213,17 @@ def test_dialog_keys_resolve(key: str, lang: str) -> None:
 
 
 @pytest.mark.parametrize("lang", ["en", "de"])
-@pytest.mark.parametrize("key", [
-    "exporter.msg.cancelled",
-    "exporter.msg.complete",
-])
-def test_exporter_keys_resolve(key: str, lang: str) -> None:
-    result = t(key, lang)
+def test_exporter_complete_key_resolves(lang: str) -> None:
+    result = t("exporter.msg.complete", lang)
     assert isinstance(result, str) and result
 
 
-@pytest.mark.parametrize("lang", ["en", "de"])
 @pytest.mark.parametrize("key", [
     "error.unexpected",
     "error.generic",
 ])
-def test_new_error_keys_resolve(key: str, lang: str) -> None:
-    result = t(key, lang, detail="oops")
+def test_new_error_keys_resolve(key: str) -> None:
+    result = diag(key, detail="oops")
     assert "oops" in result
 
 
@@ -243,3 +232,36 @@ def test_summary_authenticated_as_resolves(lang: str) -> None:
     result = t("summary.authenticated_as", lang, display_name="Jane", account_id="abc123")
     assert "Jane" in result
     assert "abc123" in result
+
+
+# -- Diagnostics channel -------------------------------------------------------
+
+
+def test_no_diagnostics_key_in_strings() -> None:
+    """No key may live in both DIAGNOSTICS and STRINGS (no double-home)."""
+    overlap = set(DIAGNOSTICS.keys()) & set(STRINGS["en"].keys())
+    assert overlap == set(), f"Keys in both dicts: {overlap}"
+
+
+@pytest.mark.parametrize("key", sorted(DIAGNOSTICS.keys()))
+def test_diag_key_resolves(key: str) -> None:
+    result = diag(key)
+    assert isinstance(result, str) and result
+
+
+def test_diag_format_substitution() -> None:
+    result = diag("error.api_failed", detail="forbidden")
+    assert "forbidden" in result
+
+
+def test_diag_unknown_key_raises_keyerror() -> None:
+    with pytest.raises(KeyError) as exc_info:
+        diag("nonexistent.diagnostic.key")
+    assert "nonexistent.diagnostic.key" in str(exc_info.value)
+
+
+def test_diag_is_english_only() -> None:
+    """diag() always returns English text regardless of locale."""
+    result = diag("error.auth_failed", detail="test")
+    assert "Authentication failed" in result
+    assert "Authentifizierung" not in result

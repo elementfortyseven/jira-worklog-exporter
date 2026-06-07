@@ -28,7 +28,7 @@ from jwe.api.auth import AuthHeaderStyle, AuthMode
 from jwe.config import ExportConfig
 from jwe.gui.workers.cloud_id_discover import CloudIdDiscoverWorker
 from jwe.gui.workers.connection_test import ConnectionTestWorker
-from jwe.i18n import DEFAULT_LANG, t
+from jwe.i18n import DEFAULT_LANG, diag, t
 
 logger = logging.getLogger(__name__)
 
@@ -310,7 +310,7 @@ class AuthWidget(QGroupBox):
                 self.save_token_cb.setChecked(True)
         except RuntimeError:
             self.save_token_cb.setEnabled(False)
-            self.keyring_info_label.setText(t("auth.keyring.unavailable", self._lang))
+            self.keyring_info_label.setText(diag("auth.keyring.unavailable"))
             self.keyring_info_label.setVisible(True)
 
     # ------------------------------------------------------------------
@@ -414,9 +414,7 @@ class AuthWidget(QGroupBox):
         )
 
     def _on_discover_failed(self, message: str) -> None:
-        self.status_label.setText(
-            t("auth.status.discovery_failed", self._lang, message=message)
-        )
+        self.status_label.setText(diag("auth.status.discovery_failed", message=message))
 
     def _on_disc_worker_done(self) -> None:
         self.sa_panel.discover_btn.setEnabled(True)
@@ -502,7 +500,5 @@ class AuthWidget(QGroupBox):
         self.user_radio.setText(t("auth.radio.user_token", lang))
         self.save_token_cb.setText(t("auth.checkbox.save_token", lang))
         self.test_btn.setText(t("auth.btn.test_connection", lang))
-        if self.keyring_info_label.isVisible():
-            self.keyring_info_label.setText(t("auth.keyring.unavailable", lang))
         self.sa_panel.retranslate_ui(lang)
         self.user_panel.retranslate_ui(lang)

@@ -1,13 +1,20 @@
 """Dependency-free i18n for de/en UI strings.
 
-Two language tables live inside ``STRINGS`` as module constants keyed by
-language code.  All user-facing strings in CLI and GUI must go through
-:func:`t` so that language switching works at runtime without hardcoding.
+Two string sources:
+
+- ``STRINGS`` + :func:`t`: Localized presentation strings (GUI chrome, labels,
+  placeholders, buttons, dialogs, progress, summaries).  Both ``en`` and ``de``
+  entries; parity-tested.
+
+- ``DIAGNOSTICS`` + :func:`diag`: English-only.  Used for log-panel lines and
+  error/failure messages so that logs are grep-able and troubleshooting stays
+  single-language regardless of the selected locale.
 
 Usage::
 
-    from jwe.i18n import t
-    print(t("error.auth_failed", lang, detail=msg))
+    from jwe.i18n import diag, t
+    print(t("section.auth.title", lang))
+    print(diag("error.auth_failed", detail=msg))
 """
 
 from __future__ import annotations
@@ -16,14 +23,6 @@ DEFAULT_LANG: str = "en"
 
 STRINGS: dict[str, dict[str, str]] = {
     "en": {
-        # ------------------------------------------------------------------ error.*
-        "error.auth_failed": "Authentication failed: {detail}",
-        "error.permission_denied": "Permission denied: {detail}",
-        "error.api_failed": "API request failed: {detail}",
-        "error.validation": "Validation error: {detail}",
-        "error.cancelled": "Export cancelled.",
-        "error.unexpected": "Unexpected error: {detail}",
-        "error.generic": "Error: {detail}",
         # ---------------------------------------------------------------- progress.*
         "progress.exporting": "Exporting worklogs ({current}/{total})...",
         "progress.partial_result": "Partial result: {count} worklogs exported so far.",
@@ -32,7 +31,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "summary.cancelled": "Export cancelled: {count} worklogs written before cancellation.",
         "summary.output_path": "Output file: {path}",
         "summary.authenticated_as": "Authenticated as: {display_name} (accountId: {account_id})",
-        # ------------------------------------------------------------------ status.* (generic, kept for CLI use)
+        # ------------------------------------------------------------------ status.* (generic)
         "status.connecting": "Connecting...",
         "status.ready": "Ready",
         "status.exporting": "Exporting...",
@@ -71,12 +70,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "auth.btn.discover_cloud_id": "Discover",
         "auth.btn.test_connection": "Test Connection",
         "auth.checkbox.save_token": "Save token to keyring",
-        "auth.keyring.unavailable": "Keyring unavailable",
-        # Auth status messages
+        # Auth status messages (presentation -- localized)
         "auth.status.testing": "Testing...",
         "auth.status.connected": "Connected as {display_name} ({email})",
         "auth.status.cloud_id_found": "Cloud ID found: {cloud_id}",
-        "auth.status.discovery_failed": "Discovery failed: {message}",
         # ---------------------------------------------------------------- filter.*
         "filter.label.from": "From",
         "filter.label.to": "To",
@@ -107,27 +104,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "status.label.not_ready": "Fill in required fields",
         "status.counter.issues_n": "Issues: {n}",
         "status.counter.worklogs_n": "Worklogs: {n}",
-        "status.log.export_complete": "Export complete. Output: {path}",
-        "status.log.dry_run_complete": "Dry run complete.",
-        "status.log.error": "Error: {message}",
-        "status.log.cancelling": "Cancelling...",
-        "status.log.cancelled": "Export cancelled.",
         # ----------------------------------------------------------------- dialog.*
         "dialog.close_during_export.title": "Export running",
         "dialog.close_during_export.text": "Export is running. Cancel and close?",
         # --------------------------------------------------------------- exporter.*
-        "exporter.msg.cancelled": "Export cancelled.",
         "exporter.msg.complete": "Export complete.",
     },
     "de": {
-        # ------------------------------------------------------------------ error.*
-        "error.auth_failed": "Authentifizierung fehlgeschlagen: {detail}",
-        "error.permission_denied": "Zugriff verweigert: {detail}",
-        "error.api_failed": "API-Anfrage fehlgeschlagen: {detail}",
-        "error.validation": "Validierungsfehler: {detail}",
-        "error.cancelled": "Export abgebrochen.",
-        "error.unexpected": "Unerwarteter Fehler: {detail}",
-        "error.generic": "Fehler: {detail}",
         # ---------------------------------------------------------------- progress.*
         "progress.exporting": "Worklogs werden exportiert ({current}/{total})...",
         "progress.partial_result": "Teilergebnis: {count} Worklogs bisher exportiert.",
@@ -175,12 +158,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "auth.btn.discover_cloud_id": "Ermitteln",
         "auth.btn.test_connection": "Verbindung testen",
         "auth.checkbox.save_token": "Token im Schlüsselbund speichern",
-        "auth.keyring.unavailable": "Schlüsselbund nicht verfügbar",
-        # Auth status messages
+        # Auth status messages (presentation -- localized)
         "auth.status.testing": "Wird getestet...",
         "auth.status.connected": "Verbunden als {display_name} ({email})",
         "auth.status.cloud_id_found": "Cloud-ID gefunden: {cloud_id}",
-        "auth.status.discovery_failed": "Ermittlung fehlgeschlagen: {message}",
         # ---------------------------------------------------------------- filter.*
         "filter.label.from": "Von",
         "filter.label.to": "Bis",
@@ -211,18 +192,35 @@ STRINGS: dict[str, dict[str, str]] = {
         "status.label.not_ready": "Pflichtfelder ausfüllen",
         "status.counter.issues_n": "Vorgänge: {n}",
         "status.counter.worklogs_n": "Worklogs: {n}",
-        "status.log.export_complete": "Export abgeschlossen. Ausgabe: {path}",
-        "status.log.dry_run_complete": "Testlauf abgeschlossen.",
-        "status.log.error": "Fehler: {message}",
-        "status.log.cancelling": "Abbruch wird durchgeführt...",
-        "status.log.cancelled": "Export abgebrochen.",
         # ----------------------------------------------------------------- dialog.*
         "dialog.close_during_export.title": "Export läuft",
         "dialog.close_during_export.text": "Export läuft. Abbrechen und schließen?",
         # --------------------------------------------------------------- exporter.*
-        "exporter.msg.cancelled": "Export abgebrochen.",
         "exporter.msg.complete": "Export abgeschlossen.",
     },
+}
+
+# English-only strings: log-panel lines and error/failure messages.
+# These are shared by GUI and CLI so logs stay grep-able across locales.
+# Use diag() to look them up -- there is no lang parameter.
+DIAGNOSTICS: dict[str, str] = {
+    # errors / failures
+    "error.auth_failed": "Authentication failed: {detail}",
+    "error.permission_denied": "Permission denied: {detail}",
+    "error.api_failed": "API request failed: {detail}",
+    "error.validation": "Validation error: {detail}",
+    "error.unexpected": "Unexpected error: {detail}",
+    "error.generic": "Error: {detail}",
+    "auth.status.discovery_failed": "Discovery failed: {message}",
+    "auth.keyring.unavailable": "Keyring unavailable",
+    # GUI activity-log lines (log panel is always English)
+    "status.log.error": "Error: {message}",
+    "status.log.export_complete": "Export complete. Output: {path}",
+    "status.log.dry_run_complete": "Dry run complete.",
+    "status.log.cancelling": "Cancelling...",
+    "status.log.cancelled": "Export cancelled.",
+    # exporter progress messages (routed to log panel)
+    "exporter.msg.cancelled": "Export cancelled.",
 }
 
 
@@ -239,6 +237,19 @@ def t(key: str, lang: str = DEFAULT_LANG, **kwargs: object) -> str:
         template = en_table.get(key)
         if template is None:
             raise KeyError(f"Unknown i18n key: {key!r}")
+    if kwargs:
+        return template.format(**kwargs)
+    return template
+
+
+def diag(key: str, **kwargs: object) -> str:
+    """Return the English-only diagnostic string for *key*.
+
+    Raises :exc:`KeyError` if *key* is absent from :data:`DIAGNOSTICS`.
+    """
+    template = DIAGNOSTICS.get(key)
+    if template is None:
+        raise KeyError(f"Unknown diagnostic key: {key!r}")
     if kwargs:
         return template.format(**kwargs)
     return template
