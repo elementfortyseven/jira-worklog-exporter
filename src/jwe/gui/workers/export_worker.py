@@ -49,9 +49,6 @@ class ExportWorker(QObject):
             for event in self._run_fn(config, cancel_event):
                 if isinstance(event, ExportProgress):
                     self.progress_updated.emit(event.issues_seen, event.worklogs_written)
-                    if event.message:
-                        # TODO etappe 6: localize ExportProgress.message via key-mapping in log_message slot
-                        self.log_message.emit(event.message)
                 elif isinstance(event, ExportResult):
                     self.finished.emit(event.output_path or "")
                     _terminal_emitted = True

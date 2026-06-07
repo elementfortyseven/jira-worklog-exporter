@@ -189,7 +189,6 @@ class TestRunExport:
         assert not any(isinstance(e, ExportResult) for e in events)
         cancelled_progress = events[-1]
         assert isinstance(cancelled_progress, ExportProgress)
-        assert "cancelled" in cancelled_progress.message.lower()
 
     @responses.activate
     def test_cancel_before_first_issue_yields_zero_counts(

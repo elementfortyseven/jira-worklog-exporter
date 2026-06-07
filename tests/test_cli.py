@@ -40,7 +40,7 @@ def _base_export_args(tmp_path: Path) -> list[str]:
 
 
 def _noop_run_export(config, cancel_event=None):  # type: ignore[no-untyped-def]
-    yield ExportProgress(issues_seen=0, worklogs_written=0, message="Export complete.")
+    yield ExportProgress(issues_seen=0, worklogs_written=0)
     yield ExportResult(
         issues_seen=0, worklogs_written=0, total_time_spent_seconds=0, output_path=None
     )

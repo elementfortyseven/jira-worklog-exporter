@@ -39,7 +39,6 @@ class ExportProgress:
 
     issues_seen: int
     worklogs_written: int
-    message: str = ""
 
 
 @dataclass(frozen=True)
@@ -161,18 +160,10 @@ def run_export(
                 )
 
     if cancel_event is not None and cancel_event.is_set():
-        yield ExportProgress(
-            issues_seen=issues_seen,
-            worklogs_written=worklogs_written,
-            message="Export cancelled.",  # i18n: exporter.msg.cancelled
-        )
+        yield ExportProgress(issues_seen=issues_seen, worklogs_written=worklogs_written)
         return
 
-    yield ExportProgress(
-        issues_seen=issues_seen,
-        worklogs_written=worklogs_written,
-        message="Export complete.",  # i18n: exporter.msg.complete
-    )
+    yield ExportProgress(issues_seen=issues_seen, worklogs_written=worklogs_written)
     yield ExportResult(
         issues_seen=issues_seen,
         worklogs_written=worklogs_written,

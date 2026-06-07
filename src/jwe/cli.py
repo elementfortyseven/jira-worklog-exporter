@@ -30,6 +30,7 @@ import jwe.service as service
 from jwe.api.auth import AuthHeaderStyle, AuthMode
 from jwe.config import ColumnProfile, ExportConfig
 from jwe.exporter import ExportProgress, ExportResult
+from jwe.i18n import DEFAULT_LANG, diag, t
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ep.add_argument("--verbose", action="store_true", default=False)
     ep.add_argument("--dry-run", dest="dry_run", action="store_true", default=False)
+    ep.add_argument(
+        "--lang",
+        choices=["de", "en"],
+        default=None,
+        metavar="LANG",
+        help="Output language for progress and summary messages: de or en (default: en).",
+    )
 
     # -------------------------------------------- discover-cloud-id
     dcp = sub.add_parser(
@@ -198,6 +206,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the cloud ID for a Jira Cloud site and exit.",
     )
     dcp.add_argument("site_url", metavar="SITE_URL")
+    dcp.add_argument(
+        "--lang",
+        choices=["de", "en"],
+        default=None,
+        metavar="LANG",
+        help="Output language for error messages: de or en (default: en).",
+    )
 
     # ------------------------------------------------------------ gui
     gp = sub.add_parser("gui", help="Launch the graphical user interface.")
@@ -290,35 +305,37 @@ def _apply_args_to_config(args: argparse.Namespace, config: ExportConfig) -> Non
 
 
 def _cmd_export(args: argparse.Namespace) -> int:
+    lang = args.lang or DEFAULT_LANG
     _setup_logging(bool(args.verbose))
 
     config = service.config_from_env()
     try:
         _apply_args_to_config(args, config)
     except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(diag("error.validation", detail=exc), file=sys.stderr)
         return _EXIT_VALIDATION_ERROR
 
     try:
         config.validate()
     except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(diag("error.validation", detail=exc), file=sys.stderr)
         return _EXIT_VALIDATION_ERROR
 
     try:
         user = service.test_connection(config)
         print(
-            f"Authenticated as: {user.display_name} (accountId: {user.account_id})",
+            t("summary.authenticated_as", lang,
+              display_name=user.display_name, account_id=user.account_id),
             file=sys.stderr,
         )
     except service.AuthenticationError as exc:
-        print(f"error: authentication failed — {exc}", file=sys.stderr)
+        print(diag("error.auth_failed", detail=exc), file=sys.stderr)
         return _EXIT_AUTH_ERROR
     except service.JiraPermissionError as exc:
-        print(f"error: permission denied — {exc}", file=sys.stderr)
+        print(diag("error.permission_denied", detail=exc), file=sys.stderr)
         return _EXIT_PERMISSION_ERROR
     except service.JiraApiError as exc:
-        print(f"error: API error — {exc}", file=sys.stderr)
+        print(diag("error.api_failed", detail=exc), file=sys.stderr)
         return _EXIT_API_ERROR
 
     cancel_event = threading.Event()
@@ -328,7 +345,12 @@ def _cmd_export(args: argparse.Namespace) -> int:
 
     gen = service.run_export(config, cancel_event)
     try:
-        with tqdm(desc="Exporting", unit=" issues", file=sys.stderr, dynamic_ncols=True) as bar:
+        with tqdm(
+            desc=t("status.exporting", lang),
+            unit=" issues",
+            file=sys.stderr,
+            dynamic_ncols=True,
+        ) as bar:
             last_issues = 0
             for event in gen:
                 if isinstance(event, ExportProgress):
@@ -352,17 +374,17 @@ def _cmd_export(args: argparse.Namespace) -> int:
             elif isinstance(event, ExportResult):
                 result = event
     except service.JiraApiError as exc:
-        print(f"\nerror: {exc}", file=sys.stderr)
+        print("\n" + diag("error.api_failed", detail=exc), file=sys.stderr)
         logger.debug("API error details", exc_info=True)
         return _EXIT_API_ERROR
     except Exception as exc:
-        print(f"\nerror: unexpected error — {exc}", file=sys.stderr)
+        print("\n" + diag("error.unexpected", detail=exc), file=sys.stderr)
         if bool(args.verbose):
             traceback.print_exc(file=sys.stderr)
         logger.debug("Unexpected error", exc_info=True)
         return _EXIT_UNKNOWN_ERROR
 
-    _print_summary(result, last_progress, interrupted)
+    _print_summary(result, last_progress, interrupted, lang)
     return _EXIT_CANCELLED if interrupted else _EXIT_SUCCESS
 
 
@@ -370,24 +392,39 @@ def _print_summary(
     result: ExportResult | None,
     last_progress: ExportProgress | None,
     interrupted: bool,
+    lang: str,
 ) -> None:
-    tag = "(cancelled) " if interrupted else ""
     if result is not None:
         secs = result.total_time_spent_seconds
         h, rem = divmod(secs, 3600)
         m = rem // 60
-        print(
-            f"\nExport {tag}complete: "
-            f"{result.issues_seen} issues, {result.worklogs_written} worklogs, "
-            f"{h}h {m}m total time spent"
-        )
+        if interrupted:
+            print(
+                "\n" + t(
+                    "summary.cancelled", lang,
+                    issues_seen=result.issues_seen,
+                    worklogs_written=result.worklogs_written,
+                )
+            )
+        else:
+            print(
+                "\n" + t(
+                    "summary.complete", lang,
+                    issues_seen=result.issues_seen,
+                    worklogs_written=result.worklogs_written,
+                    h=h,
+                    m=m,
+                )
+            )
         if result.output_path:
-            print(f"Output: {result.output_path}")
+            print(t("summary.output_path", lang, path=result.output_path))
     elif last_progress is not None:
         print(
-            f"\nPartial result: "
-            f"{last_progress.issues_seen} issues, "
-            f"{last_progress.worklogs_written} worklogs processed"
+            "\n" + t(
+                "progress.partial_result", lang,
+                issues_seen=last_progress.issues_seen,
+                worklogs_written=last_progress.worklogs_written,
+            )
         )
 
 
@@ -403,10 +440,10 @@ def _cmd_discover_cloud_id(args: argparse.Namespace) -> int:
         print(info.cloud_id)
         return _EXIT_SUCCESS
     except ValueError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(diag("error.validation", detail=exc), file=sys.stderr)
         return _EXIT_VALIDATION_ERROR
     except Exception as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(diag("error.api_failed", detail=exc), file=sys.stderr)
         return _EXIT_API_ERROR
 
 

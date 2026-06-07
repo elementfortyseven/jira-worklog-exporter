@@ -39,7 +39,7 @@ def test_key_without_placeholder_no_error() -> None:
 
 def test_no_kwargs_returns_raw_template() -> None:
     raw = t("summary.complete", "en")
-    assert "{count}" in raw
+    assert "{issues_seen}" in raw
 
 
 def test_unknown_lang_falls_back_to_en() -> None:
@@ -209,12 +209,6 @@ def test_status_log_error_resolves() -> None:
 ])
 def test_dialog_keys_resolve(key: str, lang: str) -> None:
     result = t(key, lang)
-    assert isinstance(result, str) and result
-
-
-@pytest.mark.parametrize("lang", ["en", "de"])
-def test_exporter_complete_key_resolves(lang: str) -> None:
-    result = t("exporter.msg.complete", lang)
     assert isinstance(result, str) and result
 
 

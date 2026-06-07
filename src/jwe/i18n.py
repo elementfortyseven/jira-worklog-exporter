@@ -25,10 +25,10 @@ STRINGS: dict[str, dict[str, str]] = {
     "en": {
         # ---------------------------------------------------------------- progress.*
         "progress.exporting": "Exporting worklogs ({current}/{total})...",
-        "progress.partial_result": "Partial result: {count} worklogs exported so far.",
+        "progress.partial_result": "Partial result: {issues_seen} issues, {worklogs_written} worklogs processed",
         # ----------------------------------------------------------------- summary.*
-        "summary.complete": "Export complete: {count} worklogs written.",
-        "summary.cancelled": "Export cancelled: {count} worklogs written before cancellation.",
+        "summary.complete": "Export complete: {issues_seen} issues, {worklogs_written} worklogs, {h}h {m}m total time spent",
+        "summary.cancelled": "Export cancelled: {issues_seen} issues, {worklogs_written} worklogs written before cancellation",
         "summary.output_path": "Output file: {path}",
         "summary.authenticated_as": "Authenticated as: {display_name} (accountId: {account_id})",
         # ------------------------------------------------------------------ status.* (generic)
@@ -107,16 +107,14 @@ STRINGS: dict[str, dict[str, str]] = {
         # ----------------------------------------------------------------- dialog.*
         "dialog.close_during_export.title": "Export running",
         "dialog.close_during_export.text": "Export is running. Cancel and close?",
-        # --------------------------------------------------------------- exporter.*
-        "exporter.msg.complete": "Export complete.",
     },
     "de": {
         # ---------------------------------------------------------------- progress.*
         "progress.exporting": "Worklogs werden exportiert ({current}/{total})...",
-        "progress.partial_result": "Teilergebnis: {count} Worklogs bisher exportiert.",
+        "progress.partial_result": "Teilergebnis: {issues_seen} Vorgänge, {worklogs_written} Worklogs verarbeitet",
         # ----------------------------------------------------------------- summary.*
-        "summary.complete": "Export abgeschlossen: {count} Worklogs geschrieben.",
-        "summary.cancelled": "Export abgebrochen: {count} Worklogs vor Abbruch geschrieben.",
+        "summary.complete": "Export abgeschlossen: {issues_seen} Vorgänge, {worklogs_written} Worklogs, {h}Std. {m}Min. Gesamtzeit",
+        "summary.cancelled": "Export abgebrochen: {issues_seen} Vorgänge, {worklogs_written} Worklogs vor Abbruch geschrieben",
         "summary.output_path": "Ausgabedatei: {path}",
         "summary.authenticated_as": "Authentifiziert als: {display_name} (accountId: {account_id})",
         # ------------------------------------------------------------------ status.* (generic)
@@ -195,8 +193,6 @@ STRINGS: dict[str, dict[str, str]] = {
         # ----------------------------------------------------------------- dialog.*
         "dialog.close_during_export.title": "Export läuft",
         "dialog.close_during_export.text": "Export läuft. Abbrechen und schließen?",
-        # --------------------------------------------------------------- exporter.*
-        "exporter.msg.complete": "Export abgeschlossen.",
     },
 }
 
@@ -219,8 +215,6 @@ DIAGNOSTICS: dict[str, str] = {
     "status.log.dry_run_complete": "Dry run complete.",
     "status.log.cancelling": "Cancelling...",
     "status.log.cancelled": "Export cancelled.",
-    # exporter progress messages (routed to log panel)
-    "exporter.msg.cancelled": "Export cancelled.",
 }
 
 

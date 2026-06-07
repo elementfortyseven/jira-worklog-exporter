@@ -65,30 +65,6 @@ class TestProgressUpdated:
         assert received == []
 
 
-class TestLogMessage:
-    def test_emits_log_message_when_message_non_empty(self, qtbot) -> None:
-        received: list[str] = []
-        events: list[ExportProgress | ExportResult] = [
-            ExportProgress(issues_seen=1, worklogs_written=0, message="Export complete."),
-            _RESULT_ZERO,
-        ]
-        worker = _make_worker(events)
-        worker.log_message.connect(received.append)
-        worker.start_export(_MINIMAL_CONFIG, threading.Event())
-        assert received == ["Export complete."]
-
-    def test_no_log_message_when_message_empty(self, qtbot) -> None:
-        received: list[str] = []
-        events: list[ExportProgress | ExportResult] = [
-            ExportProgress(issues_seen=1, worklogs_written=0, message=""),
-            _RESULT_ZERO,
-        ]
-        worker = _make_worker(events)
-        worker.log_message.connect(received.append)
-        worker.start_export(_MINIMAL_CONFIG, threading.Event())
-        assert received == []
-
-
 # ---------------------------------------------------------------------------
 # W-4 / W-5: finished signal
 # ---------------------------------------------------------------------------
@@ -240,7 +216,7 @@ class TestCancelledSignal:
             config: ExportConfig, ev: threading.Event
         ) -> Iterator[ExportProgress | ExportResult]:
             yield ExportProgress(
-                issues_seen=0, worklogs_written=0, message="Export cancelled."
+                issues_seen=0, worklogs_written=0
             )
             # returns without yielding ExportResult
 

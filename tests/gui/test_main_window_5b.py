@@ -39,7 +39,7 @@ def _cancelled_export_gen(
     cancel_event: threading.Event,
 ) -> Iterator[ExportProgress | ExportResult]:
     yield ExportProgress(
-        issues_seen=0, worklogs_written=0, message="Export cancelled."
+        issues_seen=0, worklogs_written=0
     )
     # returns without ExportResult -- worker emits cancelled
 
