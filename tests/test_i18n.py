@@ -1,6 +1,8 @@
 """Tests for jwe.i18n."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from jwe.i18n import DEFAULT_LANG, DIAGNOSTICS, STRINGS, diag, t
@@ -259,3 +261,57 @@ def test_diag_is_english_only() -> None:
     result = diag("error.auth_failed", detail="test")
     assert "Authentication failed" in result
     assert "Authentifizierung" not in result
+
+
+# -- Placeholder coverage (guards against future param-name drift) ------------
+
+
+@pytest.mark.parametrize("lang", ["en", "de"])
+@pytest.mark.parametrize("key, kwargs", [
+    ("progress.exporting", {"current": 5, "total": 20}),
+    ("progress.partial_result", {"issues_seen": 3, "worklogs_written": 7}),
+    ("summary.complete", {"issues_seen": 10, "worklogs_written": 50, "h": 2, "m": 30}),
+    ("summary.cancelled", {"issues_seen": 5, "worklogs_written": 20}),
+    ("summary.output_path", {"path": "/tmp/out.csv"}),
+    ("summary.authenticated_as", {"display_name": "Alice", "account_id": "acc-1"}),
+    ("auth.status.connected", {"display_name": "Alice", "email": "alice@example.com"}),
+    ("auth.status.cloud_id_found", {"cloud_id": "abc-123-uuid"}),
+    ("status.counter.issues_n", {"n": 42}),
+    ("status.counter.worklogs_n", {"n": 7}),
+])
+def test_strings_placeholder_formatting(key: str, kwargs: dict[str, object], lang: str) -> None:
+    """t() with the documented kwargs must not raise KeyError or IndexError."""
+    result = t(key, lang, **kwargs)
+    assert isinstance(result, str) and result
+
+
+@pytest.mark.parametrize("key, kwargs", [
+    ("error.auth_failed", {"detail": "401 Unauthorized"}),
+    ("error.permission_denied", {"detail": "403 Forbidden"}),
+    ("error.api_failed", {"detail": "500 Server Error"}),
+    ("error.validation", {"detail": "missing field"}),
+    ("error.unexpected", {"detail": "NullPointerException"}),
+    ("error.generic", {"detail": "something failed"}),
+    ("auth.status.discovery_failed", {"message": "timeout"}),
+    ("status.log.error", {"message": "something went wrong"}),
+    ("status.log.export_complete", {"path": "/out/file.csv"}),
+])
+def test_diagnostics_placeholder_formatting(key: str, kwargs: dict[str, object]) -> None:
+    """diag() with the documented kwargs must not raise KeyError or IndexError."""
+    result = diag(key, **kwargs)
+    assert isinstance(result, str) and result
+
+
+# -- Marker-grep gate (JWE-2 acceptance criterion) ----------------------------
+
+
+def test_no_i18n_markers_remain_in_src() -> None:
+    """Zero # i18n: markers must remain in src/ — regressions are caught in CI."""
+    src_root = Path(__file__).resolve().parents[1] / "src"
+    matches = [
+        f"{f}:{lineno + 1}: {line.rstrip()}"
+        for f in sorted(src_root.rglob("*.py"))
+        for lineno, line in enumerate(f.read_text(encoding="utf-8").splitlines())
+        if "# i18n:" in line
+    ]
+    assert matches == [], "Unreplaced # i18n: markers found:\n" + "\n".join(matches)

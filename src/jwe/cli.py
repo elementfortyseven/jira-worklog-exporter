@@ -206,13 +206,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print the cloud ID for a Jira Cloud site and exit.",
     )
     dcp.add_argument("site_url", metavar="SITE_URL")
-    dcp.add_argument(
-        "--lang",
-        choices=["de", "en"],
-        default=None,
-        metavar="LANG",
-        help="Output language for error messages: de or en (default: en).",
-    )
 
     # ------------------------------------------------------------ gui
     gp = sub.add_parser("gui", help="Launch the graphical user interface.")

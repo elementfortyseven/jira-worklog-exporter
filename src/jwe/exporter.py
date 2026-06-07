@@ -34,7 +34,6 @@ class ExportProgress:
     Attributes:
         issues_seen: Cumulative count of issues fetched from JQL search.
         worklogs_written: Cumulative count of worklogs written to CSV.
-        message: Optional human-readable status line.
     """
 
     issues_seen: int

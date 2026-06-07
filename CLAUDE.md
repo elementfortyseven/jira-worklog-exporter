@@ -100,7 +100,7 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 
 **Phase:** v1.0.1 released (2026-06-02). It shipped the UserSearchWorker Pattern C refactor (JWE-26, fixes crash on fast typing) and the keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries). Two follow-ups were then resolved against `main`: JWE-31 (the three win32-skipped two-instance MainWindow tests are un-skipped and green; the flake was cold-start timeout pressure, resolved by the 30s timeout bump 7de53d9; no state leak, no teardown bug) and JWE-29 (full audit of date/time coincidence with runtime defaults; all date literals in tests now use day-in-2..27, convention documented in §9). CLI, service layer, and GUI core functionality are complete.
 
-**Roadmap.** v1.1.0 (target 2026-06-13) — GUI Etappe 6 (full i18n marker resolution + runtime language switch, JWE-2) plus a security foundation (URL allowlist to *.atlassian.net JWE-22, bandit/pip-audit in CI JWE-23) and the CLAUDE.md German-residual cleanup (JWE-28). v1.2.0 (target 2026-06-27) — a purely visual redesign (epic JWE-32): a dark "Technical/Mono" theme, frameless window shell, and card-based section layout, on top of the existing PySide6 widget tree with no functional change. The earlier UX-polish items (inline-validation red border, minimum window size, ad-hoc QSS styling) are absorbed into JWE-32 and delivered there against the new design tokens rather than hand-rolled in v1.1.0 (JWE-3 -> JWE-36, JWE-4 -> JWE-34). v1.3.0 (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme. The hardcoded UI strings with # i18n: markers do not block any v1.0.x release.
+**Roadmap.** v1.1.0 (target 2026-06-13) — GUI Etappe 6 (JWE-2) is complete: two-channel i18n model, full marker resolution, CLI --lang, runtime switch, persistence, 745 tests. Remaining for v1.1.0: security foundation (URL allowlist to *.atlassian.net JWE-22, bandit/pip-audit in CI JWE-23) and the CLAUDE.md German-residual cleanup (JWE-28). v1.2.0 (target 2026-06-27) — a purely visual redesign (epic JWE-32): a dark "Technical/Mono" theme, frameless window shell, and card-based section layout, on top of the existing PySide6 widget tree with no functional change. The earlier UX-polish items (inline-validation red border, minimum window size, ad-hoc QSS styling) are absorbed into JWE-32 and delivered there against the new design tokens rather than hand-rolled in v1.1.0 (JWE-3 -> JWE-36, JWE-4 -> JWE-34). v1.3.0 (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme.
 
 **CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. GitLab CI has been fully green since JWE-10 (QRadioButton click compatibility fix for the winrm executor). The mirror push to GitLab is manual (never from Claude Code).
 
@@ -119,8 +119,8 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 | `jwe.exporter` | ✅ implemented | run_export generator; 90% coverage, 8 tests |
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | Two-channel model: STRINGS + t(key, lang) for localized presentation; DIAGNOSTICS + diag(key) for English-only log/error messages. 97% coverage, 218 tests. |
-| `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
-| `jwe.gui` | ✅ etappen 1-5b complete; Etappe 6 in progress | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields. 718 tests green across the suite. Etappe 6 (JWE-2): 6a (key table), 6a-fix (DIAGNOSTICS two-channel split), 6b (GUI marker wiring) committed; 6c (CLI) + 6d (final tests + CLAUDE.md) pending for v1.1.0. Visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
+| `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; --lang on export subcommand; errors via diag(), progress/summary via t(key, lang); 82% coverage, 19 tests |
+| `jwe.gui` | ✅ etappen 1-5b + Etappe 6 complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields; full i18n (two-channel model, runtime language switch, QSettings persistence). 745 tests green across the suite. Visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
 | `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
@@ -393,7 +393,15 @@ self.label.setText("Connection test")  # i18n: auth.btn.test_connection
 
 This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than a hunt through the codebase.
 
-v1.0.0 released after Etappe 5b; v1.0.1 followed as a patch. Etappe 6 below (i18n marker resolution) is planned for v1.1.0. The visual UX polish originally bundled with it (inline-validation styling, minimum window size, QSS theming) has been pulled into the v1.2 visual redesign epic JWE-32 — see "v1.2 — Visual redesign" at the end of this section.
+v1.0.0 released after Etappe 5b; v1.0.1 followed as a patch. Etappe 6 is complete as of v1.1.0 (see below). The visual UX polish originally bundled with it (inline-validation styling, minimum window size, QSS theming) has been pulled into the v1.2 visual redesign epic JWE-32 — see "v1.2 — Visual redesign" at the end of this section.
+
+### Two-channel i18n convention (established in Etappe 6, applies permanently)
+
+**Logging and all error/failure messages are always English** (`DIAGNOSTICS` / `diag(key, **kwargs)`, no `lang` param). Only UI chrome — labels, buttons, titles, placeholders, dialogs, and CLI progress/summary — is localized (`STRINGS` / `t(key, lang, **kwargs)`). This keeps logs grep-able and troubleshooting single-language regardless of the user's selected locale.
+
+Rule of thumb: if the string appears in a log file or in response to an error condition, use `diag()`. If the user reads it in the normal operating flow, use `t(key, lang)`.
+
+The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regressions: any new hardcoded UI string that is not immediately wired through `t()` or `diag()` will cause CI to fail.
 
 ---
 
@@ -515,18 +523,25 @@ v1.0.0 released after Etappe 5b; v1.0.1 followed as a patch. Etappe 6 below (i18
 
 ---
 
-### Etappe 6 — Full i18n (planned for v1.1.0)
+### ✅ Etappe 6 — Full i18n (v1.1.0)
 
-**Goal:** Fully internationalised GUI; runtime language switch across all strings.
+**Goal:** Fully internationalised GUI and CLI; runtime language switch; two-channel i18n model.
 
 **Implements:**
-- All `# i18n: <key>` markers resolved: `t(key, lang)` everywhere, new keys added to `jwe/i18n.py` string tables
-- `retranslate_ui` stubs (Etappe 1) filled in on every widget
-- Language persisted via `QSettings`; language toggle works at runtime across all strings
+- Two-channel i18n model in `jwe/i18n.py`: `STRINGS` + `t(key, lang)` for localized presentation; `DIAGNOSTICS` + `diag(key)` (no lang param) for English-only logs and error/failure messages
+- All 72 `# i18n:` markers resolved across 7 files: `t()` everywhere for UI strings, `diag()` for log panel and error lines; zero markers remain in `src/`
+- `retranslate_ui` bodies filled in on all five section widgets; `retranslate_ui` re-sets only `t()` strings (diagnostic/log strings do not change on language switch)
+- `ExportProgress.message` field removed (was dead); `exporter.msg.*` keys dropped from all tables
+- CLI: `--lang {de,en}` on `export` subcommand; errors via `diag()`, progress/summary via `t(key, lang)`
+- Language persisted via `QSettings`; runtime toggle works across all presentation strings
 
-**Tests (pytest-qt):**
-- Every i18n key used in the UI resolves without `KeyError` for both `de` and `en` (parametrised)
-- Language switch at runtime updates all visible widget texts
+**Tests (pytest-qt, 745 tests total):**
+- STRINGS en/de parity; every key resolves via `t()` for both locales without `KeyError`
+- Every DIAGNOSTICS key resolves via `diag()` without `KeyError`; no double-home with STRINGS
+- Placeholder coverage: every `{param}`-bearing template tested with its documented kwargs
+- Runtime switch: MainWindow starts in de, toggle updates section title, button, counter, placeholder to en equivalents; diagnostic strings confirmed identical before and after toggle
+- Language persistence: toggle to en, close, reconstruct with same QSettings, assert en restored
+- Marker-grep gate: `test_no_i18n_markers_remain_in_src` scans `src/` and asserts zero `# i18n:` markers; runs in CI on every push
 
 > The inline-validation styling and minimum-window-size items that previously lived here moved to the v1.2 visual redesign (JWE-32): the error border is delivered as a token-based QSS class in JWE-36, the minimum window size is enforced by the frameless shell in JWE-34.
 
