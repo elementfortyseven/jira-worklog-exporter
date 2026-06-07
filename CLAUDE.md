@@ -118,9 +118,9 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 | `jwe.csv_writer` | ✅ implemented | WorklogCsvWriter context manager; 97% coverage, 15 tests |
 | `jwe.exporter` | ✅ implemented | run_export generator; 90% coverage, 8 tests |
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
-| `jwe.i18n` | ✅ implemented | t(key, lang, **kwargs) with de/en tables; 95% coverage, 45 tests |
+| `jwe.i18n` | ✅ implemented | Two-channel model: STRINGS + t(key, lang) for localized presentation; DIAGNOSTICS + diag(key) for English-only log/error messages. 97% coverage, 218 tests. |
 | `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; 82% coverage, 19 tests |
-| `jwe.gui` | ✅ etappen 1-5b complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields. 545 tests green across the suite. Etappe 6 (i18n marker resolution) planned for v1.1.0; visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
+| `jwe.gui` | ✅ etappen 1-5b complete; Etappe 6 in progress | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields. 718 tests green across the suite. Etappe 6 (JWE-2): 6a (key table), 6a-fix (DIAGNOSTICS two-channel split), 6b (GUI marker wiring) committed; 6c (CLI) + 6d (final tests + CLAUDE.md) pending for v1.1.0. Visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
 | `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
