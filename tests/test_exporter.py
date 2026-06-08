@@ -8,12 +8,14 @@ import threading
 from datetime import date
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 import responses
 
 from jwe.api.auth import AuthMode
 from jwe.api.client import AuthenticationError
+from jwe.api.worklog import Worklog
 from jwe.config import ExportConfig
 from jwe.exporter import ExportProgress, ExportResult, run_export
 
@@ -86,6 +88,22 @@ def _worklog_page(worklogs: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _worklog_url(issue_key: str) -> str:
     return f"{_SA_BASE}/rest/api/3/issue/{issue_key}/worklog"
+
+
+def _make_worklog(wl_id: str, issue_key: str = "PROJ-1", account_id: str = "user-001") -> Worklog:
+    return Worklog(
+        id=wl_id,
+        issue_key=issue_key,
+        author_account_id=account_id,
+        author_display_name=f"User {account_id}",
+        author_email=f"{account_id}@example.com",
+        started="2026-04-15T10:00:00.000+0000",
+        time_spent="1h",
+        time_spent_seconds=3600,
+        comment_adf=None,
+        created="2026-04-15T10:05:00.000+0000",
+        updated="2026-04-15T10:05:00.000+0000",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -216,10 +234,10 @@ class TestRunExport:
         assert final.worklogs_written == 0
 
     @responses.activate
-    def test_cancel_after_first_issue_yields_partial_counts(
+    def test_cancel_during_worklog_fetch_stops_before_writing(
         self, base_config: ExportConfig, tmp_path: Path
     ) -> None:
-        """Cancel set during PROJ-1 worklog fetch → only PROJ-1's rows in CSV."""
+        """Cancel set during PROJ-1 HTTP worklog fetch: inner check fires before append_row."""
         cancel = threading.Event()
 
         responses.add(responses.GET, _MYSELF_URL, json=_MYSELF)
@@ -232,6 +250,7 @@ class TestRunExport:
         def _worklog_and_cancel(
             req: Any,
         ) -> tuple[int, dict[str, str], str]:
+            # cancel fires during the HTTP request, before any worklog is yielded
             cancel.set()
             return (
                 200,
@@ -252,12 +271,13 @@ class TestRunExport:
         final = events[-1]
         assert isinstance(final, ExportProgress)
         assert final.issues_seen == 1
-        assert final.worklogs_written == 1
-        # The CSV is still written (the with-block closes normally after the break).
+        # Inner cancel check fires before append_row, so 0 worklogs written from PROJ-1.
+        assert final.worklogs_written == 0
+        # CSV file is created (context manager writes header on entry) but has no data rows.
         csv_files = list(tmp_path.glob("*.csv"))
         assert len(csv_files) == 1
         lines = csv_files[0].read_text(encoding="utf-8-sig").splitlines()
-        assert len(lines) == 2  # 1 header + 1 data row
+        assert len(lines) == 1  # header only
 
     @responses.activate
     def test_foreign_account_id_not_written(
@@ -341,3 +361,43 @@ class TestRunExport:
         assert len(progress_events) >= 1
         assert isinstance(events[-1], ExportResult)
         assert isinstance(events[-2], ExportProgress)
+
+    @responses.activate
+    def test_cancel_mid_worklog_pagination(
+        self, base_config: ExportConfig, tmp_path: Path
+    ) -> None:
+        """Cancel set after first worklog: stops before second, partial count kept."""
+        cancel = threading.Event()
+
+        responses.add(responses.GET, _MYSELF_URL, json=_MYSELF)
+        responses.add(
+            responses.POST,
+            _SEARCH_URL,
+            json=_search_page([_issue("PROJ-1"), _issue("PROJ-2")]),
+        )
+
+        wl1 = _make_worklog("1001")
+        wl2 = _make_worklog("1002")
+        wl3 = _make_worklog("1003")
+
+        def _iter_worklogs_with_cancel(*args: Any, **kwargs: Any):  # type: ignore[no-untyped-def]
+            yield wl1
+            cancel.set()  # set cancel between the first and second worklog
+            yield wl2
+            yield wl3
+
+        with patch("jwe.exporter.iter_worklogs", side_effect=_iter_worklogs_with_cancel):
+            events = list(run_export(base_config, cancel_event=cancel))
+
+        # Cancelled run: no ExportResult, only a final ExportProgress.
+        assert not any(isinstance(e, ExportResult) for e in events)
+        final = events[-1]
+        assert isinstance(final, ExportProgress)
+        # Only the first worklog was written before the inner-loop cancel check fired.
+        assert final.issues_seen == 1
+        assert final.worklogs_written == 1
+        # The CSV exists and contains exactly the partial row.
+        csv_files = list(tmp_path.glob("*.csv"))
+        assert len(csv_files) == 1
+        lines = csv_files[0].read_text(encoding="utf-8-sig").splitlines()
+        assert len(lines) == 2  # 1 header + 1 data row

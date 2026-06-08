@@ -78,8 +78,9 @@ def run_export(
     Args:
         config: Validated configuration.
         cancel_event: Optional cancellation flag. When set, the run stops
-            cleanly between issues and yields a final result with the partial
-            counts.
+            cleanly between issues and between worklog pages within an issue
+            (already-written rows for the in-progress issue are kept) and
+            yields a final result with the partial counts.
 
     Yields:
         Zero or more :class:`ExportProgress` events, followed by exactly one
@@ -138,6 +139,8 @@ def run_export(
                 config.to_date,
                 account_ids_set,
             ):
+                if cancel_event is not None and cancel_event.is_set():
+                    break
                 if writer is not None:
                     writer.append_row(issue, worklog)
                 worklogs_written += 1
@@ -150,6 +153,9 @@ def run_export(
                         issues_seen=issues_seen,
                         worklogs_written=worklogs_written,
                     )
+
+            if cancel_event is not None and cancel_event.is_set():
+                break
 
             if issues_seen - last_progress_issues >= _PROGRESS_EVERY_N_ISSUES:
                 last_progress_issues = issues_seen
