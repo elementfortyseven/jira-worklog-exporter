@@ -61,7 +61,7 @@ def discover_cloud_id(site_url: str, timeout: float = DISCOVERY_TIMEOUT_SECONDS)
 
     logger.debug("Discovering cloud ID via %s", url)
     try:
-        response = requests.get(url, timeout=timeout, allow_redirects=False)
+        response = requests.get(url, timeout=timeout, allow_redirects=False)  # Security control (JWE-22): no redirects; site_url already allowlisted above
     except requests.RequestException as exc:
         raise TenantInfoError(f"Could not reach {url}: {exc}") from exc
 

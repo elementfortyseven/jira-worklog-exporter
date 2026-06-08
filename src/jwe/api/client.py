@@ -140,7 +140,7 @@ class JiraCloudClient:
                 params=params,
                 json=json,
                 timeout=self.timeout,
-                allow_redirects=False,
+                allow_redirects=False,  # Security control (JWE-22): prevent token leak via redirect to off-allowlist host
             )
         except requests.RequestException as exc:
             raise JiraApiError(f"Network error during {method} {url}: {exc}") from exc

@@ -18,6 +18,9 @@ from dataclasses import dataclass
 from jwe.api.auth import AuthStrategy, ServiceAccountAuth, UserTokenAuth
 
 _CLOUD_ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+# Security control (JWE-22): allowlist — only *.atlassian.net with https, no port, no path,
+# no userinfo. Anchored ^ and $ prevent suffix attacks (e.g. acme.atlassian.net.evil.com).
+# Do not relax this pattern without a security review.
 _SITE_URL_RE = re.compile(r"^https://[a-z0-9][a-z0-9-]*\.atlassian\.net$", re.IGNORECASE)
 
 

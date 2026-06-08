@@ -66,3 +66,16 @@ class TestDiscoverCloudId:
         # No responses.add — if we made an HTTP request, it would fail loudly.
         with pytest.raises(ValueError, match="Invalid site_url"):
             discover_cloud_id("not-a-url")
+
+    @pytest.mark.parametrize(
+        "bypass_url",
+        [
+            "https://acme.atlassian.net.evil.com",  # suffix attack
+            "https://acme.atlassian.net@evil.com",  # userinfo attack
+        ],
+    )
+    def test_bypass_attempts_rejected_before_request(self, bypass_url: str) -> None:
+        # Security control (JWE-22): allowlist validation must fire before any HTTP call.
+        # No responses.add — a live request would fail the test if validation is skipped.
+        with pytest.raises(ValueError, match="Invalid site_url"):
+            discover_cloud_id(bypass_url)

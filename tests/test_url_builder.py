@@ -130,6 +130,11 @@ class TestValidators:
             "https://acme.atlassian.net/jira",  # path
             "https://acme.com",  # wrong domain
             "acme.atlassian.net",  # no scheme
+            # Adversarial bypass attempts (JWE-22):
+            "https://acme.atlassian.net.evil.com",  # suffix attack — regex $ anchor must hold
+            "https://acme.atlassian.net@evil.com",  # userinfo attack — @ before host
+            "https://acme.atlassian.net:8080",  # port — not in allowlist; safer to reject
+            "https://1.2.3.4",  # bare IP — not a valid atlassian.net hostname
         ],
     )
     def test_validate_site_url_rejects_bad(self, invalid: str) -> None:
