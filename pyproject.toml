@@ -43,6 +43,8 @@ dev = [
     "types-requests",
     "types-tqdm",
     "keyring>=25.0",
+    "bandit[toml]>=1.7",
+    "pip-audit>=2.7",
 ]
 build = [
     "pyinstaller>=6.10",
@@ -124,6 +126,11 @@ timeout = 30
 # Qt offscreen platform for CI environments without
 # display. Works on Windows/macOS/Linux uniformly.
 qt_qpa_platform = "offscreen"
+
+[tool.bandit]
+# Exclude tests: assert-usage (B101) in test files is intentional and adds noise.
+# Gate: medium-and-above severity (-ll flag in CI). Low findings are informational only.
+exclude_dirs = ["tests"]
 
 [tool.coverage.run]
 source = ["src/jwe"]

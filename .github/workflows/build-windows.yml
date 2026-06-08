@@ -55,6 +55,36 @@ jobs:
         if: runner.os == 'Linux'
         run: pytest --ignore=tests/gui
 
+  security:
+    name: Security scan (bandit + pip-audit)
+    runs-on: ubuntu-latest
+    # Single leg: scans are platform-independent; no need to repeat across the matrix.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: SAST (bandit)
+        # -ll = medium-and-above severity gate; low findings are informational only.
+        # To suppress a specific finding: add "# nosec <ID>  # reason" at the call site.
+        run: bandit -r src -c pyproject.toml -ll
+
+      - name: Dependency audit (pip-audit)
+        # Blocking. To accept an unfixable transitive advisory, add:
+        #   pip-audit --ignore-vuln <VULN-ID>
+        # and document the justification in this file.
+        run: pip-audit
+
   build-windows:
     name: Build Windows binaries
     needs: test

@@ -21,6 +21,7 @@ workflow:
 stages:
   - lint
   - test
+  - security
 
 # ---------------------------------------------------------------------------
 # Lint job: Linux, fast, runs once (not in matrix)
@@ -104,3 +105,25 @@ test:windows:3.13:
   extends: .test-windows
   variables:
     PYTHON_PACKAGE: "python313"
+
+# ---------------------------------------------------------------------------
+# Security job: SAST (bandit) + dependency audit (pip-audit)
+# Single Linux/3.12 leg — scans are platform-independent.
+# Mirrors the GitHub Actions security job.
+# ---------------------------------------------------------------------------
+
+security:
+  stage: security
+  image: python:3.12
+  tags:
+    - saas-linux-small-amd64
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -e ".[dev]"
+  script:
+    # -ll = medium-and-above severity gate; low findings are informational only.
+    # To suppress a finding: add "# nosec <ID>  # reason" at the call site.
+    - bandit -r src -c pyproject.toml -ll
+    # Blocking. To accept an unfixable transitive advisory, add
+    # "pip-audit --ignore-vuln <VULN-ID>" and document the justification here.
+    - pip-audit
