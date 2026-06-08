@@ -1,4 +1,4 @@
-"""Tests for MainWindow -- Etappen 1, 4, and connection-verify wiring."""
+"""Tests for MainWindow -- Stages 1, 4, and connection-verify wiring."""
 
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ class TestQSettingsGeometryRoundtrip:
 
 
 # ---------------------------------------------------------------------------
-# Export button integration -- Etappe 4
+# Export button integration -- Stage 4
 # ---------------------------------------------------------------------------
 
 

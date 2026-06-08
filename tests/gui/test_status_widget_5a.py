@@ -1,4 +1,4 @@
-"""Tests for StatusWidget -- Etappe 5a additions (progress display)."""
+"""Tests for StatusWidget -- Stage 5a additions (progress display)."""
 
 from __future__ import annotations
 

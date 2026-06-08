@@ -1,4 +1,4 @@
-"""Status bar widget anchored at the bottom of MainWindow (Etappe 5a fill)."""
+"""Status bar widget anchored at the bottom of MainWindow (Stage 5a fill)."""
 
 from __future__ import annotations
 

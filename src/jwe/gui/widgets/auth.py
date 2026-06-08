@@ -437,7 +437,7 @@ class AuthWidget(QGroupBox):
     # ------------------------------------------------------------------
 
     def stop_running_threads(self) -> None:
-        # TODO etappe 5b: graceful cancel for export worker
+        # TODO stage 5b: graceful cancel for export worker
         threads = [th for th in (self._conn_thread, self._disc_thread) if th is not None and th.isRunning()]
         for thread in threads:
             thread.quit()

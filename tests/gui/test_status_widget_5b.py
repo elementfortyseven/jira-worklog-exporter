@@ -1,4 +1,4 @@
-"""Tests for StatusWidget -- Etappe 5b additions (cancel button + result buttons)."""
+"""Tests for StatusWidget -- Stage 5b additions (cancel button + result buttons)."""
 
 from __future__ import annotations
 

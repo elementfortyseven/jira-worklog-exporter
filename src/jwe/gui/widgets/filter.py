@@ -1,4 +1,4 @@
-"""Date-range and project filter widget (Etappe 4)."""
+"""Date-range and project filter widget (Stage 4)."""
 
 from __future__ import annotations
 

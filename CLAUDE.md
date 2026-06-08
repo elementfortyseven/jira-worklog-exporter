@@ -71,14 +71,14 @@ Pre-existing lint, type, or other errors in files outside the current commit's s
 
 Feature work and pre-existing bug fixes are never mixed in a single commit.
 
-### GUI Etappen workflow
+### GUI Stages workflow
 
-One Etappe = one commit = one fresh Claude Code session. At Etappe completion update **§1** (status table) and **§14** (Etappe heading → ✅) in the same commit as the code and tests.
+One Stage = one commit = one fresh Claude Code session. At Stage completion update **§1** (status table) and **§14** (Stage heading → ✅) in the same commit as the code and tests.
 
 ### GUI review pattern
 
 1. Class sketch with signal/slot list → wait for explicit approval before writing code
-2. Write code — `# i18n: <key>` on every hardcoded string (Etappen 2–5b)
+2. Write code — `# i18n: <key>` on every hardcoded string (Stages 2–5b)
 3. Tests green + brief visual window description
 4. Single commit: code + tests + §1 update + §14 ✅
 
@@ -90,7 +90,7 @@ Minimum scope for any update:
 
 - **§1 status table** if a module's state, test count, or CI infrastructure changed
 - **§13 backlog** if a known issue was resolved or a new one identified
-- **§14 Etappen** marked ✅ on completion (existing rule, see GUI Etappen workflow above)
+- **§14 Stages** marked ✅ on completion (existing rule, see GUI Stages workflow above)
 
 Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13, and §14 in a dedicated `docs:` commit if not already current.
 
@@ -100,7 +100,7 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 
 **Phase:** v1.0.1 released (2026-06-02). It shipped the UserSearchWorker Pattern C refactor (JWE-26, fixes crash on fast typing) and the keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries). Two follow-ups were then resolved against `main`: JWE-31 (the three win32-skipped two-instance MainWindow tests are un-skipped and green; the flake was cold-start timeout pressure, resolved by the 30s timeout bump 7de53d9; no state leak, no teardown bug) and JWE-29 (full audit of date/time coincidence with runtime defaults; all date literals in tests now use day-in-2..27, convention documented in §9). CLI, service layer, and GUI core functionality are complete.
 
-**Roadmap.** v1.1.0 (target 2026-06-13) — GUI Etappe 6 (JWE-2) is complete: two-channel i18n model, full marker resolution, CLI --lang, runtime switch, persistence, 745 tests. Remaining for v1.1.0: security foundation (URL allowlist to *.atlassian.net JWE-22, bandit/pip-audit in CI JWE-23) and the CLAUDE.md German-residual cleanup (JWE-28). v1.2.0 (target 2026-06-27) — a purely visual redesign (epic JWE-32): a dark "Technical/Mono" theme, frameless window shell, and card-based section layout, on top of the existing PySide6 widget tree with no functional change. The earlier UX-polish items (inline-validation red border, minimum window size, ad-hoc QSS styling) are absorbed into JWE-32 and delivered there against the new design tokens rather than hand-rolled in v1.1.0 (JWE-3 -> JWE-36, JWE-4 -> JWE-34). v1.3.0 (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme.
+**Roadmap.** v1.1.0 (target 2026-06-13) — GUI Stage 6 (JWE-2) complete: two-channel i18n model, full marker resolution, CLI --lang, runtime switch, persistence, 745 tests. Security foundation complete -- URL allowlist to *.atlassian.net (JWE-22) and bandit/pip-audit in CI (JWE-23). Remaining for v1.1.0: README refresh (JWE-41) and the JWE-6/JWE-7 housekeeping items. v1.2.0 (target 2026-06-27) — a purely visual redesign (epic JWE-32): a dark "Technical/Mono" theme, frameless window shell, and card-based section layout, on top of the existing PySide6 widget tree with no functional change. The earlier UX-polish items (inline-validation red border, minimum window size, ad-hoc QSS styling) are absorbed into JWE-32 and delivered there against the new design tokens rather than hand-rolled in v1.1.0 (JWE-3 -> JWE-36, JWE-4 -> JWE-34). v1.3.0 (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme.
 
 **CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. GitLab CI has been fully green since JWE-10 (QRadioButton click compatibility fix for the winrm executor). The mirror push to GitLab is manual (never from Claude Code).
 
@@ -118,10 +118,10 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 | `jwe.csv_writer` | ✅ implemented | WorklogCsvWriter context manager; 97% coverage, 15 tests |
 | `jwe.exporter` | ✅ implemented | run_export generator; 90% coverage, 8 tests |
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
-| `jwe.i18n` | ✅ implemented | Two-channel model: STRINGS + t(key, lang) for localized presentation; DIAGNOSTICS + diag(key) for English-only log/error messages. 97% coverage, 218 tests. |
+| `jwe.i18n` | ✅ implemented | Two-channel model: STRINGS + t(key, lang) for localized presentation; DIAGNOSTICS + diag(key) for English-only log/error messages. 97% coverage, 244 tests. |
 | `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; --lang on export subcommand; errors via diag(), progress/summary via t(key, lang); 82% coverage, 19 tests |
-| `jwe.gui` | ✅ etappen 1-5b + Etappe 6 complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields; full i18n (two-channel model, runtime language switch, QSettings persistence). 745 tests green across the suite. Visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
-| `jwe.gui_main` | 🟡 etappe 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
+| `jwe.gui` | ✅ stages 1-5b + Stage 6 complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields; full i18n (two-channel model, runtime language switch, QSettings persistence). 745 tests green across the suite. Visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
+| `jwe.gui_main` | 🟡 stage 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
 
@@ -340,6 +340,17 @@ Apply this rule to **all** `setDate` calls in tests that touch `FilterWidget` (o
 
 For `setText("")` on a field that may default to `""`: ensure the field already contains a non-empty value before calling `setText("")` if a change signal is expected. See the comment in `test_user_search_widget.py` line ~155 for an example.
 
+### Security tooling in CI (JWE-23)
+
+Both GitHub Actions and GitLab CI run a dedicated `security` job on every push (Ubuntu/Python 3.12):
+
+- **bandit** — `bandit -r src -c pyproject.toml -ll` gates at medium-and-above severity. To suppress a finding at the call site: `# nosec <ID>  # reason` (the reason is required for review).
+- **pip-audit** — blocking; reports known CVEs in all installed packages. To allowlist an unfixable transitive advisory: `pip-audit --ignore-vuln <ID>` in the workflow (document the reason inline).
+
+### Versioning (JWE-43)
+
+`__version__` in `src/jwe/__init__.py` is the single source of truth; `pyproject.toml` derives the version via hatchling dynamic versioning. Bump the version only at release boundaries via a `vX.Y.Z` tag, which triggers the Windows binary build and GitHub Release. Milestone or test builds use pre-release tags (`vX.Y.Z-rc1`, published as GitHub pre-releases) — never an ad-hoc version bump in source.
+
 ---
 
 ## 10. Known traps (in priority order)
@@ -381,9 +392,9 @@ For `setText("")` on a field that may default to `""`: ensure the field already 
 
 ## 14. GUI implementation roadmap
 
-Each etappe is one commit and is implemented in a fresh Claude Code session. The mandatory review pattern applies to every etappe — see end of this section.
+Each stage is one commit and is implemented in a fresh Claude Code session. The mandatory review pattern applies to every stage — see end of this section.
 
-### i18n-Marker convention (Etappen 2–5b)
+### i18n-Marker convention (Stages 2–5b)
 
 Every hardcoded UI string (label text, button caption, placeholder, error message) that is not yet wired to `t()` must be annotated inline:
 
@@ -391,11 +402,11 @@ Every hardcoded UI string (label text, button caption, placeholder, error messag
 self.label.setText("Connection test")  # i18n: auth.btn.test_connection
 ```
 
-This makes the Etappe 6 refactoring mechanical (grep for `# i18n:`) rather than a hunt through the codebase.
+This makes the Stage 6 refactoring mechanical (grep for `# i18n:`) rather than a hunt through the codebase.
 
-v1.0.0 released after Etappe 5b; v1.0.1 followed as a patch. Etappe 6 is complete as of v1.1.0 (see below). The visual UX polish originally bundled with it (inline-validation styling, minimum window size, QSS theming) has been pulled into the v1.2 visual redesign epic JWE-32 — see "v1.2 — Visual redesign" at the end of this section.
+v1.0.0 released after Stage 5b; v1.0.1 followed as a patch. Stage 6 is complete as of v1.1.0 (see below). The visual UX polish originally bundled with it (inline-validation styling, minimum window size, QSS theming) has been pulled into the v1.2 visual redesign epic JWE-32 — see "v1.2 — Visual redesign" at the end of this section.
 
-### Two-channel i18n convention (established in Etappe 6, applies permanently)
+### Two-channel i18n convention (established in Stage 6, applies permanently)
 
 **Logging and all error/failure messages are always English** (`DIAGNOSTICS` / `diag(key, **kwargs)`, no `lang` param). Only UI chrome — labels, buttons, titles, placeholders, dialogs, and CLI progress/summary — is localized (`STRINGS` / `t(key, lang, **kwargs)`). This keeps logs grep-able and troubleshooting single-language regardless of the user's selected locale.
 
@@ -405,7 +416,7 @@ The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regr
 
 ---
 
-### ✅ Etappe 1 — Skeleton & Infrastruktur
+### ✅ Stage 1 — Skeleton & Infrastructure
 
 **Goal:** Launchable window with the full structural frame; no real functionality yet.
 
@@ -422,7 +433,7 @@ The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regr
 
 ---
 
-### ✅ Etappe 2 — Auth Panel & Connection Test
+### ✅ Stage 2 — Auth Panel & Connection Test
 
 **Goal:** Fully functional auth section; real Jira connection testable.
 
@@ -445,7 +456,7 @@ The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regr
 
 ---
 
-### ✅ Etappe 3 — User Search & Shuttle
+### ✅ Stage 3 — User Search & Shuttle
 
 **Goal:** User lookup and multi-selection fully operational.
 
@@ -465,7 +476,7 @@ The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regr
 
 ---
 
-### ✅ Etappe 4 — Filter, Output & Form Validation
+### ✅ Stage 4 — Filter, Output & Form Validation
 
 **Goal:** Complete input form; export button correctly gated.
 
@@ -484,7 +495,7 @@ The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regr
 
 ---
 
-### ✅ Etappe 5a — ExportWorker & Progress Display
+### ✅ Stage 5a — ExportWorker & Progress Display
 
 **Goal:** Export runs end-to-end; progress visible in UI.
 
@@ -504,7 +515,7 @@ The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regr
 
 ---
 
-### ✅ Etappe 5b — Cancel, closeEvent & Result Actions
+### ✅ Stage 5b — Cancel, closeEvent & Result Actions
 
 **Goal:** Safe cancellation, exit protection, post-export affordances.
 
@@ -523,7 +534,7 @@ The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regr
 
 ---
 
-### ✅ Etappe 6 — Full i18n (v1.1.0)
+### ✅ Stage 6 — Full i18n (v1.1.0)
 
 **Goal:** Fully internationalised GUI and CLI; runtime language switch; two-channel i18n model.
 
@@ -558,14 +569,20 @@ New architecture introduced here (all under `jwe/gui/`):
 - a frameless `MainWindow` (custom title bar with DE/EN toggle, min/max/close, window move) replacing OS chrome
 - restyled form controls, identity strip + status chips, themed export footer, and a motion layer (`QPropertyAnimation`/`QTimer`/`QGraphicsDropShadowEffect`) with a reduced-motion fallback
 
-Child stories: JWE-33 (tokens/theme), JWE-34 (frameless shell, absorbs JWE-4), JWE-35 (section cards), JWE-36 (form controls, absorbs JWE-3's error border), JWE-37 (identity strip/chips), JWE-38 (interim user/chip styling, pre-JWE-12), JWE-39 (export footer), JWE-40 (motion). Keep the auth-mode controls as `QRadioButton`s (styled as a segmented control) for winrm test compatibility per §9. Each story stays one Etappe = one commit = one session; §1 and this section are updated on completion.
+Child stories: JWE-33 (tokens/theme), JWE-34 (frameless shell, absorbs JWE-4), JWE-35 (section cards), JWE-36 (form controls, absorbs JWE-3's error border), JWE-37 (identity strip/chips), JWE-38 (interim user/chip styling, pre-JWE-12), JWE-39 (export footer), JWE-40 (motion). Keep the auth-mode controls as `QRadioButton`s (styled as a segmented control) for winrm test compatibility per §9. Each story stays one Stage = one commit = one session; §1 and this section are updated on completion.
 
-### Review pattern (verbindlich für jede Etappe)
+### Review pattern (mandatory for every stage)
 
-1. **Klassen-Skizze** — Klassennamen, Vererbungen, wichtigste Signals/Slots in Prosa vorab zeigen. Warten auf explizite Freigabe.
-   Die Test-Liste in der Skizze muss zwei Regeln befolgen:
-   - **Felder-Präsenz einzeln**: jedes UI-Feld bekommt einen eigenen Test (nicht „SA-Panel hat korrekte Felder" als einen Test).
-   - **Gegenteil-Fälle einplanen**: zu jedem „A führt zu B"-Test auch „nicht-A führt nicht zu B" notieren (z.B. „Checkbox aus → save_token NICHT aufgerufen"). Das verdoppelt erfahrungsgemäß die Test-Zahl gegenüber der Erstschätzung.
-2. **Code schreiben** — `# i18n: <key>` an jedem hardcodierten String (Etappen 2–5b), keine Doppler, Ruff- und mypy-konform.
-3. **Tests grün + Sichtprüfung** — `pytest` läuft durch; das laufende Fenster wird kurz beschrieben (kein Screenshot-Test).
-4. **Commit + Push + §1- und §14-Update** — CLAUDE.md §1-Statustabelle im selben Commit aktualisieren; zugleich den abgeschlossenen Etappen-Header in §14 auf ✅ setzen.
+1. **Class sketch** — present class names, inheritance, and the key signals/slots in prose first.
+   Wait for explicit approval. The test list in the sketch must follow two rules:
+   - **Field presence individually**: each UI field gets its own test (not "SA panel has the correct
+     fields" as a single test).
+   - **Plan negative cases**: for every "A leads to B" test, also note "not-A does not lead to B"
+     (e.g. "checkbox off -> save_token NOT called"). In practice this roughly doubles the test count
+     versus the first estimate.
+2. **Write code** — `# i18n: <key>` on every hardcoded string (Stages 2–5b), no duplicates,
+   ruff- and mypy-clean.
+3. **Tests green + visual check** — `pytest` passes; the running window is briefly described
+   (no screenshot test).
+4. **Commit + push + §1 and §14 update** — update the CLAUDE.md §1 status table in the same commit;
+   set the completed stage header in §14 to ✅.

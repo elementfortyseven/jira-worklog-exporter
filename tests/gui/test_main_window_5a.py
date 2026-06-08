@@ -1,4 +1,4 @@
-"""Tests for MainWindow export wiring -- Etappe 5a."""
+"""Tests for MainWindow export wiring -- Stage 5a."""
 
 from __future__ import annotations
 

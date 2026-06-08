@@ -1,4 +1,4 @@
-"""Tests for AuthWidget, ServiceAccountPanel, UserTokenPanel -- Etappe 2."""
+"""Tests for AuthWidget, ServiceAccountPanel, UserTokenPanel -- Stage 2."""
 
 from __future__ import annotations
 
@@ -375,7 +375,7 @@ class TestQSettingsRoundTrip:
 
 
 # ---------------------------------------------------------------------------
-# is_valid -- Etappe 4 retrofit
+# is_valid -- Stage 4 retrofit
 # ---------------------------------------------------------------------------
 
 
@@ -439,7 +439,7 @@ class TestIsValidUserToken:
 
 
 # ---------------------------------------------------------------------------
-# validation_changed -- Etappe 4 retrofit
+# validation_changed -- Stage 4 retrofit
 # ---------------------------------------------------------------------------
 
 

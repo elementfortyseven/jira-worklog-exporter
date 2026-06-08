@@ -1,4 +1,4 @@
-"""Runtime language-switch and persistence tests for Etappe 6 (JWE-2).
+"""Runtime language-switch and persistence tests for Stage 6 (JWE-2).
 
 Two-channel i18n proof:
 - Presentation strings (STRINGS / t()) change on language toggle.

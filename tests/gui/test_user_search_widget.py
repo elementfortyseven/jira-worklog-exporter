@@ -1,4 +1,4 @@
-"""Tests for UserSearchWidget and UserSearchWorker -- Etappe 3 / JWE-26."""
+"""Tests for UserSearchWidget and UserSearchWorker -- Stage 3 / JWE-26."""
 
 from __future__ import annotations
 
@@ -490,7 +490,7 @@ class TestGetterAndSignal:
 
 
 # ---------------------------------------------------------------------------
-# is_valid -- Etappe 4 retrofit
+# is_valid -- Stage 4 retrofit
 # ---------------------------------------------------------------------------
 
 

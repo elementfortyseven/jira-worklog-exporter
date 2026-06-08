@@ -1,4 +1,4 @@
-"""Tests for StatusWidget -- Etappe 4."""
+"""Tests for StatusWidget -- Stage 4."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for ExportWorker -- Etappe 5a."""
+"""Tests for ExportWorker -- Stage 5a."""
 
 from __future__ import annotations
 
@@ -201,7 +201,7 @@ class TestCancelEvent:
 
 
 # ---------------------------------------------------------------------------
-# W-11 / W-12: cancelled signal (Etappe 5b)
+# W-11 / W-12: cancelled signal (Stage 5b)
 # ---------------------------------------------------------------------------
 
 

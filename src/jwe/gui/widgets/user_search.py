@@ -1,4 +1,4 @@
-"""User search and selection shuttle widget (Etappe 3)."""
+"""User search and selection shuttle widget (Stage 3)."""
 
 from __future__ import annotations
 

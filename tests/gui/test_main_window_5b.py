@@ -1,4 +1,4 @@
-"""Tests for MainWindow -- Etappe 5b (cancel, closeEvent, result buttons)."""
+"""Tests for MainWindow -- Stage 5b (cancel, closeEvent, result buttons)."""
 
 from __future__ import annotations
 

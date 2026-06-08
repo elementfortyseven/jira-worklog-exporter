@@ -1,4 +1,4 @@
-"""Output configuration widget (Etappe 4)."""
+"""Output configuration widget (Stage 4)."""
 
 from __future__ import annotations
 
