@@ -15,7 +15,7 @@ CSV export of worklogs from a Jira Cloud site, filtered by users, date range, an
    - `SHA256SUMS.txt` — checksums for verification
 2. Double-click `jwe-gui.exe` or invoke `jwe-cli.exe` from PowerShell.
 
-**Note on SmartScreen:** v1.0.0 is not code-signed. On first launch, Windows will display a SmartScreen warning. Click *More info* → *Run anyway*.
+**Note on SmartScreen:** the executables are not code-signed. On first launch, Windows will display a SmartScreen warning. Click *More info* → *Run anyway*.
 
 **Verify checksum (optional):**
 
@@ -58,7 +58,7 @@ An API token bound to your own Atlassian account. Faster to set up, but exports 
 4. **Output** — target directory, CSV delimiter, column profile, API version.
 5. **Status & Export** — start the export, view progress, cancel, open the result file directly.
 
-The GUI is available in German and English (switchable in the menu).
+The GUI is available in German and English, switchable at runtime via the language toggle.
 
 ---
 
@@ -97,6 +97,8 @@ jwe-cli export --help
 ```
 
 **Multiple users:** `--users` comma-separated (`5b10a2..., 712020:...`) or via file with `--users-file path/to/users.txt` (one account ID per line, `#` for comments).
+
+**Output language:** `export` and `gui` accept `--lang {de,en}` to localise progress and summary output (default `en`). Error and log messages stay English regardless of this setting.
 
 **Exit codes:** `0` success, `1` authentication failed, `2` validation error, `3` API or connection error, `4` cancelled by user, `5` no permission, `6` unexpected error.
 
