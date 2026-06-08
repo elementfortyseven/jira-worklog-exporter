@@ -27,6 +27,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 import jwe.service as service
+from jwe import __version__
 from jwe.api.auth import AuthHeaderStyle, AuthMode
 from jwe.config import ColumnProfile, ExportConfig
 from jwe.exporter import ExportProgress, ExportResult
@@ -78,7 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="jwe-cli",
         description="Export Jira Cloud worklogs of selected users to CSV.",
     )
-    parser.add_argument("--version", action="version", version="jwe-cli 0.1.0")
+    parser.add_argument("--version", action="version", version=f"jwe-cli {__version__}")
 
     sub = parser.add_subparsers(dest="command", metavar="COMMAND")
 
