@@ -3,15 +3,16 @@
 
 | Field | Value |
 |---|---|
-| Document version | 1.3 |
-| Status | Draft |
-| Date | 2026-05-29 |
+| Document version | 1.4 |
+| Status | Living (v1.1.0 released) |
+| Date | 2026-06-10 |
 | Author | Martin |
 | Target platform | Windows 11 (primary), platform-independent (Python) |
 | Target system | Jira Cloud (REST API v3, one site of an organisation) |
 | Changes vs. 1.0 | Service account authentication added as the preferred mode; gateway URL `api.atlassian.com/ex/jira/{cloudId}` established; cloud ID discovery; scope and permission layering documented; Appendix A "Setup guide for org admins" added. |
 | Changes vs. 1.1 | Python minimum version raised to 3.12 (3.11 removed from CI); GUI tests verified on Windows only, Linux/Mac supported as CLI platforms. |
 | Changes vs. 1.2 | Roadmap (§17) reconciled with the JWE epic plan: v1.1 = i18n + security foundation, v1.2 = visual redesign (JWE-32), v1.3 = User Management v2 + interaction redesign; profiles/xlsx and Data Center deferred to "later". §10 notes the v1.2 visual re-skin (no functional change). |
+| Changes vs. 1.3 | Build/distribution facts reconciled with the shipped pipeline: §14 build steps corrected to the command-line PyInstaller invocations (no `.spec` files; `*.spec` is gitignored), GUI artefact renamed `JiraWorklogExporter-GUI.exe` -> `jwe-gui.exe`, §1 "signed" corrected to unsigned (v1). Status set to Living. |
 
 ---
 
@@ -21,7 +22,7 @@ The **Jira Cloud Worklog Exporter** is a small, self-contained tool for exportin
 
 The tool authenticates either via an **Atlassian service account token (preferred)** or via a classic personal API token (fallback). In service account mode, traffic flows through the Atlassian Platform gateway `https://api.atlassian.com/ex/jira/{cloudId}`; in classic mode it goes directly against the site URL.
 
-The tool ships as a Python script with an optional PySide6 GUI and can be built as a signed Windows executable via PyInstaller plus a GitHub Actions workflow — analogous to the existing "Jira Project Leads Exporter".
+The tool ships as a Python script with an optional PySide6 GUI and can be built as a standalone Windows executable (unsigned in v1; code signing is a v2 item) via PyInstaller plus a GitHub Actions workflow — analogous to the existing "Jira Project Leads Exporter".
 
 ---
 
@@ -461,9 +462,9 @@ Exit codes:
 ## 14. Build & Distribution
 
 - **Repo host:** GitHub, public (since v1.0.0).
-- **CI:** `.github/workflows/build-windows.yml` with trigger on tags `v*`.
-  - Steps: Setup Python 3.12 → `pip install -e .[build]` → `pyinstaller jwe-gui.spec` → `pyinstaller jwe-cli.spec` → SHA-256 manifest → upload to GitHub release.
-- **Artefacts:** `JiraWorklogExporter-GUI.exe`, `jwe-cli.exe`, `SHA256SUMS.txt`.
+- **CI:** `.github/workflows/build-windows.yml`. Runs the test matrix (Windows + Linux, Python 3.12/3.13: ruff, mypy, pytest) and a security job (bandit + pip-audit) on every push/PR; on tags `v*` it additionally builds the Windows binaries (the build job gates on the test job).
+  - Build steps: Setup Python 3.12 → `pip install -e ".[dev,build]"` → `pyinstaller --onefile --console --name jwe-cli --paths src --hidden-import keyring.backends.Windows src/jwe/__main__.py` → `pyinstaller --onefile --windowed --name jwe-gui --paths src --hidden-import keyring.backends.Windows src/jwe/gui_main.py` → SHA-256 manifest → upload to the GitHub release via `softprops/action-gh-release` (marked pre-release when the tag contains a hyphen, e.g. `v1.1.0-rc1`).
+- **Artefacts:** `jwe-cli.exe`, `jwe-gui.exe`, `SHA256SUMS.txt`.
 - **Versioning:** Semantic Versioning (`MAJOR.MINOR.PATCH`).
 - **Code signing:** v1 unsigned; in v2 possibly with Sigstore / self-hosted cert.
 
