@@ -98,9 +98,9 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 
 ## 1. Project state
 
-**Phase:** v1.0.1 released (2026-06-02). It shipped the UserSearchWorker Pattern C refactor (JWE-26, fixes crash on fast typing) and the keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries). Two follow-ups were then resolved against `main`: JWE-31 (the three win32-skipped two-instance MainWindow tests are un-skipped and green; the flake was cold-start timeout pressure, resolved by the 30s timeout bump 7de53d9; no state leak, no teardown bug) and JWE-29 (full audit of date/time coincidence with runtime defaults; all date literals in tests now use day-in-2..27, convention documented in §9). CLI, service layer, and GUI core functionality are complete.
+**Phase:** v1.1.0 released (2026-06-09). It shipped the two-channel i18n model with runtime language switch and CLI `--lang` (JWE-2), the security foundation (URL allowlist to *.atlassian.net JWE-22; bandit + pip-audit in CI JWE-23), the version single-source-of-truth and pre-release tagging logic (JWE-43/44), the README/docs refresh (JWE-41), and the JWE-6/JWE-7 housekeeping items. The prior v1.0.1 (2026-06-02) shipped the UserSearchWorker Pattern C refactor (JWE-26, fixes crash on fast typing) and the keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries); the JWE-31 (cold-start timeout flake, fixed by the 30s timeout bump 7de53d9 — no state leak, no teardown bug) and JWE-29 (date/time coincidence audit; test date literals use day-in-2..27, see §9) follow-ups are resolved against `main`. CLI, service layer, and GUI core functionality are complete.
 
-**Roadmap.** v1.1.0 (target 2026-06-13) — GUI Stage 6 (JWE-2) complete: two-channel i18n model, full marker resolution, CLI --lang, runtime switch, persistence, 745 tests. Security foundation complete -- URL allowlist to *.atlassian.net (JWE-22) and bandit/pip-audit in CI (JWE-23). Remaining for v1.1.0: README refresh (JWE-41) and the JWE-6/JWE-7 housekeeping items. v1.2.0 (target 2026-06-27) — a purely visual redesign (epic JWE-32): a dark "Technical/Mono" theme, frameless window shell, and card-based section layout, on top of the existing PySide6 widget tree with no functional change. The earlier UX-polish items (inline-validation red border, minimum window size, ad-hoc QSS styling) are absorbed into JWE-32 and delivered there against the new design tokens rather than hand-rolled in v1.1.0 (JWE-3 -> JWE-36, JWE-4 -> JWE-34). v1.3.0 (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme.
+**Roadmap.** v1.1.0 (released 2026-06-09) — GUI Stage 6 (JWE-2) complete: two-channel i18n model, full marker resolution, CLI --lang, runtime switch, persistence, 745 tests. Security foundation complete -- URL allowlist to *.atlassian.net (JWE-22) and bandit/pip-audit in CI (JWE-23). README refresh (JWE-41) and the JWE-6/JWE-7 housekeeping items shipped in this release. v1.2.0 (target 2026-06-27) — a purely visual redesign (epic JWE-32): a dark "Technical/Mono" theme, frameless window shell, and card-based section layout, on top of the existing PySide6 widget tree with no functional change. The earlier UX-polish items (inline-validation red border, minimum window size, ad-hoc QSS styling) are absorbed into JWE-32 and delivered there against the new design tokens rather than hand-rolled in v1.1.0 (JWE-3 -> JWE-36, JWE-4 -> JWE-34). v1.3.0 (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme.
 
 **CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. GitLab CI has been fully green since JWE-10 (QRadioButton click compatibility fix for the winrm executor). The mirror push to GitLab is manual (never from Claude Code).
 
@@ -150,12 +150,12 @@ python -m jwe export --help
 # Run GUI from source
 python -m jwe gui
 
-# Build Windows binaries (also runs in CI)
-pyinstaller jwe-cli.spec
-pyinstaller jwe-gui.spec
+# Build Windows binaries locally (CI uses the same PyInstaller invocations; see build-windows.yml)
+pyinstaller --onefile --console --name jwe-cli --paths src --hidden-import keyring.backends.Windows src/jwe/__main__.py
+pyinstaller --onefile --windowed --name jwe-gui --paths src --hidden-import keyring.backends.Windows src/jwe/gui_main.py
 ```
 
-`.spec` files for PyInstaller are not yet generated — create them on first build with `pyinstaller --onefile --name jwe-cli src/jwe/__main__.py` and edit afterward.
+The CI build (`.github/workflows/build-windows.yml`) invokes PyInstaller from the command line exactly as above; there are **no committed `.spec` files** (`*.spec` is gitignored). Any `.spec` you generate for local iteration stays local — the workflow is the authoritative build config.
 
 ---
 
@@ -385,8 +385,8 @@ Both GitHub Actions and GitLab CI run a dedicated `security` job on every push (
 
 - **Output dir auto-create:** Currently `ExportConfig.validate()` raises if `output_dir` does not exist. For better UX, the default `./exports` should be auto-created on first run, while explicitly user-provided paths still raise (protects against typos). Pick this up during the GUI iteration since the file-picker will need consistent behavior.
 - **Cross-platform builds:** Add `build-macos.yml` and `build-linux.yml` GitHub Actions workflows after the first GUI implementation. macOS requires Code Signing and Notarization; Linux is best packaged as AppImage. Initially acceptable without signing for internal distribution — document the bypass procedure for users.
-- **One-shot thread cleanup in auth.py:** `auth.py` lines ~345-346 still use `thread.finished.connect(worker.deleteLater)` + `thread.finished.connect(thread.deleteLater)`. This is a single-shot worker (not Pattern C), and the `deleteLater` chaining was identified as a crash trigger in the export worker (Commit 16e3af3). No crash has been observed here because these threads are short-lived and infrequent, but the pattern should be revisited and aligned with the safer approach used in the export worker. user_search.py was fixed to Pattern C in JWE-26; auth.py is tracked under JWE-6 for v1.1.
-- **cancel_event granularity in run_export:** The cancel_event check in `jwe/exporter.py` is tested once per issue, not once per worklog page. For issues with very large worklog counts (hundreds of pages), a single iteration can take several seconds, meaning `closeEvent`'s `thread.wait(2000)` may expire before the export actually stops. Resolution: check cancel_event inside the worklog pagination loop as well. Tracked under JWE-7 for v1.1.
+- **(Resolved in v1.1.0) auth.py one-shot thread cleanup (JWE-6):** closed after review — `auth.py`'s connection-test / cloud-id workers are genuinely one-shot, for which the `thread.finished → deleteLater` idiom is correct and is additionally hardened with explicit ref-clearing. The 16e3af3 GC race was specific to the long-lived/reused export worker (already on Pattern C). No code change warranted.
+- **(Resolved in v1.1.0) cancel_event granularity in run_export (JWE-7):** `jwe/exporter.py` now checks `cancel_event` inside the worklog pagination loop as well as between issues, so cancellation aborts within a single issue's worklog pages instead of only at the next issue boundary.
 
 ---
 
