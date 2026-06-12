@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from datetime import date
 from pathlib import Path
 from unittest import mock
@@ -29,13 +31,20 @@ def _base_export_args(tmp_path: Path) -> list[str]:
     """Minimal valid CLI args for service-account export."""
     return [
         "export",
-        "--cloud-id", _CLOUD_ID,
-        "--service-account-email", _SA_EMAIL,
-        "--token", "ATATT3xFfGF0dummy",
-        "--users", "user-001",
-        "--from", "2026-04-01",
-        "--to", "2026-04-30",
-        "--output-dir", str(tmp_path),
+        "--cloud-id",
+        _CLOUD_ID,
+        "--service-account-email",
+        _SA_EMAIL,
+        "--token",
+        "ATATT3xFfGF0dummy",
+        "--users",
+        "user-001",
+        "--from",
+        "2026-04-01",
+        "--to",
+        "2026-04-30",
+        "--output-dir",
+        str(tmp_path),
     ]
 
 
@@ -53,23 +62,37 @@ def _noop_run_export(config, cancel_event=None):  # type: ignore[no-untyped-def]
 
 class TestBuildParser:
     def test_export_all_flags(self) -> None:
-        args = build_parser().parse_args([
-            "export",
-            "--auth-mode", "user-token",
-            "--site-url", _SITE_URL,
-            "--email", "user@example.com",
-            "--token", "TOK",
-            "--users", "u1,u2",
-            "--from", "2026-01-01",
-            "--to", "2026-01-31",
-            "--projects", "PROJ,SUPP",
-            "--output-dir", "/tmp",
-            "--columns", "full",
-            "--delimiter", ";",
-            "--api-version", "2",
-            "--verbose",
-            "--dry-run",
-        ])
+        args = build_parser().parse_args(
+            [
+                "export",
+                "--auth-mode",
+                "user-token",
+                "--site-url",
+                _SITE_URL,
+                "--email",
+                "user@example.com",
+                "--token",
+                "TOK",
+                "--users",
+                "u1,u2",
+                "--from",
+                "2026-01-01",
+                "--to",
+                "2026-01-31",
+                "--projects",
+                "PROJ,SUPP",
+                "--output-dir",
+                "/tmp",
+                "--columns",
+                "full",
+                "--delimiter",
+                ";",
+                "--api-version",
+                "2",
+                "--verbose",
+                "--dry-run",
+            ]
+        )
         assert args.auth_mode == "user-token"
         assert args.from_date == date(2026, 1, 1)
         assert args.to_date == date(2026, 1, 31)
@@ -95,6 +118,24 @@ class TestBuildParser:
         with pytest.raises(SystemExit):
             build_parser().parse_args(["export", "--columns", "wrong"])
 
+    def test_gui_subcommand_removed(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            main(["gui"])
+        assert exc.value.code == 2
+
+
+# ---------------------------------------------------------------------------
+# Qt-free import guard (subprocess: must not load PySide6 / shiboken6)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_import_graph_is_qt_free() -> None:
+    code = (
+        "import jwe.cli, sys; "
+        "assert 'PySide6' not in sys.modules and 'shiboken6' not in sys.modules"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)
+
 
 # ---------------------------------------------------------------------------
 # Validation errors (exit 2)
@@ -114,40 +155,63 @@ class TestValidationErrors:
         users_file.write_text("user-001\n")
         args = [
             "export",
-            "--cloud-id", _CLOUD_ID,
-            "--service-account-email", _SA_EMAIL,
-            "--token", "TOK",
-            "--users", "user-001",
-            "--users-file", str(users_file),
-            "--from", "2026-04-01",
-            "--to", "2026-04-30",
-            "--output-dir", str(tmp_path),
+            "--cloud-id",
+            _CLOUD_ID,
+            "--service-account-email",
+            _SA_EMAIL,
+            "--token",
+            "TOK",
+            "--users",
+            "user-001",
+            "--users-file",
+            str(users_file),
+            "--from",
+            "2026-04-01",
+            "--to",
+            "2026-04-30",
+            "--output-dir",
+            str(tmp_path),
         ]
         assert main(args) == 2
 
     def test_missing_required_fields_exits_2(self, tmp_path: Path) -> None:
-        code = main([
-            "export",
-            "--cloud-id", _CLOUD_ID,
-            "--service-account-email", _SA_EMAIL,
-            "--token", "TOK",
-            "--output-dir", str(tmp_path),
-        ])
+        code = main(
+            [
+                "export",
+                "--cloud-id",
+                _CLOUD_ID,
+                "--service-account-email",
+                _SA_EMAIL,
+                "--token",
+                "TOK",
+                "--output-dir",
+                str(tmp_path),
+            ]
+        )
         assert code == 2
 
     def test_users_file_not_found_exits_2(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        code = main([
-            "export",
-            "--cloud-id", _CLOUD_ID,
-            "--service-account-email", _SA_EMAIL,
-            "--token", "TOK",
-            "--users-file", str(tmp_path / "nonexistent.txt"),
-            "--from", "2026-04-01",
-            "--to", "2026-04-30",
-            "--output-dir", str(tmp_path),
-        ])
+        code = main(
+            [
+                "export",
+                "--cloud-id",
+                _CLOUD_ID,
+                "--service-account-email",
+                _SA_EMAIL,
+                "--token",
+                "TOK",
+                "--users-file",
+                str(tmp_path / "nonexistent.txt"),
+                "--from",
+                "2026-04-01",
+                "--to",
+                "2026-04-30",
+                "--output-dir",
+                str(tmp_path),
+            ]
+        )
         assert code == 2
         assert "users-file" in capsys.readouterr().err
 
@@ -160,16 +224,25 @@ class TestValidationErrors:
         monkeypatch.setattr(service, "test_connection", lambda c: _SA_USER)
         monkeypatch.setattr(service, "run_export", _noop_run_export)
 
-        code = main([
-            "export",
-            "--cloud-id", _CLOUD_ID,
-            "--service-account-email", _SA_EMAIL,
-            "--token", "ATATT3xFfGF0dummy",
-            "--users-file", str(users_file),
-            "--from", "2026-04-01",
-            "--to", "2026-04-30",
-            "--output-dir", str(tmp_path),
-        ])
+        code = main(
+            [
+                "export",
+                "--cloud-id",
+                _CLOUD_ID,
+                "--service-account-email",
+                _SA_EMAIL,
+                "--token",
+                "ATATT3xFfGF0dummy",
+                "--users-file",
+                str(users_file),
+                "--from",
+                "2026-04-01",
+                "--to",
+                "2026-04-30",
+                "--output-dir",
+                str(tmp_path),
+            ]
+        )
         assert code == 0
 
 
@@ -200,9 +273,7 @@ class TestAuthErrors:
     def test_api_error_on_connection_exits_3(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(
-            service, "test_connection", mock.Mock(side_effect=JiraApiError("500"))
-        )
+        monkeypatch.setattr(service, "test_connection", mock.Mock(side_effect=JiraApiError("500")))
         assert main(_base_export_args(tmp_path)) == 3
 
 
@@ -237,8 +308,10 @@ class TestHappyPath:
         def run(config, cancel_event=None):  # type: ignore[no-untyped-def]
             yield ExportProgress(issues_seen=1, worklogs_written=2)
             yield ExportResult(
-                issues_seen=1, worklogs_written=2,
-                total_time_spent_seconds=0, output_path=expected,
+                issues_seen=1,
+                worklogs_written=2,
+                total_time_spent_seconds=0,
+                output_path=expected,
             )
 
         monkeypatch.setattr(service, "test_connection", lambda c: _SA_USER)
@@ -247,9 +320,7 @@ class TestHappyPath:
         assert main(_base_export_args(tmp_path)) == 0
         assert expected in capsys.readouterr().out
 
-    def test_dry_run_exits_0(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_dry_run_exits_0(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(service, "test_connection", lambda c: _SA_USER)
         monkeypatch.setattr(service, "run_export", _noop_run_export)
         assert main([*_base_export_args(tmp_path), "--dry-run"]) == 0
@@ -270,7 +341,8 @@ class TestKeyboardInterruptDrainLoop:
         """KI during export: drain loop resumes generator; exit 4, counts in summary."""
         progress = ExportProgress(issues_seen=3, worklogs_written=7)
         final = ExportResult(
-            issues_seen=3, worklogs_written=7,
+            issues_seen=3,
+            worklogs_written=7,
             total_time_spent_seconds=1800,
             output_path=None,
         )
@@ -322,17 +394,13 @@ class TestDiscoverCloudId:
         assert main(["discover-cloud-id", _SITE_URL]) == 0
         assert _CLOUD_ID in capsys.readouterr().out
 
-    def test_value_error_exits_2(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_value_error_exits_2(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             service, "discover_cloud_id", mock.Mock(side_effect=ValueError("bad url"))
         )
         assert main(["discover-cloud-id", "not-a-url"]) == 2
 
-    def test_generic_exception_exits_3(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_generic_exception_exits_3(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             service, "discover_cloud_id", mock.Mock(side_effect=Exception("connection error"))
         )

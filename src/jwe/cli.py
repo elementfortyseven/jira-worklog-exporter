@@ -53,19 +53,13 @@ def _parse_date(value: str) -> date:
     try:
         return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError as exc:
-        raise argparse.ArgumentTypeError(
-            f"invalid date {value!r} — expected YYYY-MM-DD"
-        ) from exc
+        raise argparse.ArgumentTypeError(f"invalid date {value!r} — expected YYYY-MM-DD") from exc
 
 
 def _read_users_file(path: str) -> list[str]:
     """Read account IDs from a file; skip blank lines and # comments."""
     lines = Path(path).read_text(encoding="utf-8").splitlines()
-    return [
-        line.strip()
-        for line in lines
-        if line.strip() and not line.strip().startswith("#")
-    ]
+    return [line.strip() for line in lines if line.strip() and not line.strip().startswith("#")]
 
 
 # ---------------------------------------------------------------------------
@@ -208,16 +202,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     dcp.add_argument("site_url", metavar="SITE_URL")
 
-    # ------------------------------------------------------------ gui
-    gp = sub.add_parser("gui", help="Launch the graphical user interface.")
-    gp.add_argument(
-        "--lang",
-        choices=["de", "en"],
-        default=None,
-        metavar="LANG",
-        help="Initial interface language: de or en (overrides saved setting).",
-    )
-
     return parser
 
 
@@ -318,8 +302,12 @@ def _cmd_export(args: argparse.Namespace) -> int:
     try:
         user = service.test_connection(config)
         print(
-            t("summary.authenticated_as", lang,
-              display_name=user.display_name, account_id=user.account_id),
+            t(
+                "summary.authenticated_as",
+                lang,
+                display_name=user.display_name,
+                account_id=user.account_id,
+            ),
             file=sys.stderr,
         )
     except service.AuthenticationError as exc:
@@ -394,16 +382,20 @@ def _print_summary(
         m = rem // 60
         if interrupted:
             print(
-                "\n" + t(
-                    "summary.cancelled", lang,
+                "\n"
+                + t(
+                    "summary.cancelled",
+                    lang,
                     issues_seen=result.issues_seen,
                     worklogs_written=result.worklogs_written,
                 )
             )
         else:
             print(
-                "\n" + t(
-                    "summary.complete", lang,
+                "\n"
+                + t(
+                    "summary.complete",
+                    lang,
                     issues_seen=result.issues_seen,
                     worklogs_written=result.worklogs_written,
                     h=h,
@@ -414,18 +406,14 @@ def _print_summary(
             print(t("summary.output_path", lang, path=result.output_path))
     elif last_progress is not None:
         print(
-            "\n" + t(
-                "progress.partial_result", lang,
+            "\n"
+            + t(
+                "progress.partial_result",
+                lang,
                 issues_seen=last_progress.issues_seen,
                 worklogs_written=last_progress.worklogs_written,
             )
         )
-
-
-def _cmd_gui(args: argparse.Namespace) -> int:
-    from jwe.gui_main import main as gui_main
-
-    return gui_main(lang=getattr(args, "lang", None))
 
 
 def _cmd_discover_cloud_id(args: argparse.Namespace) -> int:
@@ -455,8 +443,6 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_export(args)
     if args.command == "discover-cloud-id":
         return _cmd_discover_cloud_id(args)
-    if args.command == "gui":
-        return _cmd_gui(args)
 
     parser.print_help(sys.stderr)
     return _EXIT_VALIDATION_ERROR

@@ -1,6 +1,6 @@
 """Entry point for ``python -m jwe``.
 
-Dispatches to the CLI (which includes the ``gui`` subcommand) via argparse.
+Dispatches to the CLI via argparse.
 """
 
 from __future__ import annotations

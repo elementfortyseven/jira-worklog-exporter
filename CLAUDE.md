@@ -119,8 +119,8 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 | `jwe.exporter` | ✅ implemented | run_export generator; 90% coverage, 8 tests |
 | `jwe.service` | ✅ implemented | Service layer (test_connection, search_users, discover_cloud_id, run_export, token persistence, config_from_env); 97% coverage, 12 tests |
 | `jwe.i18n` | ✅ implemented | Two-channel model: STRINGS + t(key, lang) for localized presentation; DIAGNOSTICS + diag(key) for English-only log/error messages. 97% coverage, 244 tests. |
-| `jwe.cli` | ✅ implemented | argparse with export, discover-cloud-id, and gui subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; --lang on export subcommand; errors via diag(), progress/summary via t(key, lang); 82% coverage, 19 tests |
-| `jwe.gui` | ✅ stages 1-5b + Stage 6 complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields; full i18n (two-channel model, runtime language switch, QSettings persistence). 745 tests green across the suite. Visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
+| `jwe.cli` | ✅ implemented | argparse with export and discover-cloud-id subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; --lang on export subcommand; errors via diag(), progress/summary via t(key, lang); headless (no Qt in import graph); 83% coverage, 22 tests |
+| `jwe.gui` | ✅ stages 1-5b + Stage 6 complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields; full i18n (two-channel model, runtime language switch, QSettings persistence). 754 tests green across the suite. Visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
 | `jwe.gui_main` | 🟡 stage 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
@@ -148,14 +148,17 @@ ruff format .
 python -m jwe export --help
 
 # Run GUI from source
-python -m jwe gui
+python -m jwe.gui_main
 
 # Build Windows binaries locally (CI uses the same PyInstaller invocations; see build-windows.yml)
-pyinstaller --onefile --console --name jwe-cli --paths src --hidden-import keyring.backends.Windows src/jwe/__main__.py
+# jwe-cli excludes PySide6/shiboken6 to keep it headless (no Qt bundled); jwe-gui includes them.
+pyinstaller --onefile --console --name jwe-cli --paths src --hidden-import keyring.backends.Windows --exclude-module PySide6 --exclude-module shiboken6 src/jwe/__main__.py
 pyinstaller --onefile --windowed --name jwe-gui --paths src --hidden-import keyring.backends.Windows src/jwe/gui_main.py
 ```
 
 The CI build (`.github/workflows/build-windows.yml`) invokes PyInstaller from the command line exactly as above; there are **no committed `.spec` files** (`*.spec` is gitignored). Any `.spec` you generate for local iteration stays local — the workflow is the authoritative build config.
+
+**Headless CLI (JWE-45):** `jwe-cli` has no GUI subcommand and no Qt in its import graph. The packaged `jwe-cli.exe` excludes `PySide6` and `shiboken6`, making it significantly smaller than `jwe-gui.exe`. GUI initial language is set solely via saved QSettings and the runtime toggle — no `--lang` flag on any GUI launch path.
 
 ---
 

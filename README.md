@@ -88,9 +88,6 @@ jwe-cli export `
 # Discover the cloud ID for a site
 jwe-cli discover-cloud-id https://acme.atlassian.net
 
-# Launch the GUI from the CLI
-jwe-cli gui
-
 # Full help
 jwe-cli --help
 jwe-cli export --help
@@ -98,7 +95,7 @@ jwe-cli export --help
 
 **Multiple users:** `--users` comma-separated (`5b10a2..., 712020:...`) or via file with `--users-file path/to/users.txt` (one account ID per line, `#` for comments).
 
-**Output language:** `export` and `gui` accept `--lang {de,en}` to localise progress and summary output (default `en`). Error and log messages stay English regardless of this setting.
+**Output language:** `export` accepts `--lang {de,en}` to localise progress and summary output (default `en`). Error and log messages stay English regardless of this setting.
 
 **Exit codes:** `0` success, `1` authentication failed, `2` validation error, `3` API or connection error, `4` cancelled by user, `5` no permission, `6` unexpected error.
 
