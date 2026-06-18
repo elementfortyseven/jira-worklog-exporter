@@ -563,7 +563,9 @@ The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regr
 
 ### v1.2 — Visual redesign (epic JWE-32)
 
-A purely visual and structural re-skin on top of the existing PySide6 widget tree — no change to data flow, auth, export, CSV, or threading logic. Direction "Technical/Mono": navy base, cyan neon accent, monospace labels/numbers, bracketed section indices, card-based sections, terminal-style export log. The interactive prototype lives outside the repo (`JWE Redesign.html`); the prototype and the extracted token values should be committed under `docs/design/` before JWE-33 starts.
+A purely visual and structural re-skin on top of the existing PySide6 widget tree — no change to data flow, auth, export, CSV, or threading logic. Direction "Technical/Mono": navy base, cyan neon accent, monospace labels/numbers, bracketed section indices, card-based sections, terminal-style export log. The interactive prototype lives outside the repo (`JWE Redesign.html`); the prototype and the extracted token values should be committed under `docs/design/` before JWE-33 starts (tracked as JWE-48).
+
+**Web -> QSS translation (plan for this in JWE-33):** the prototype and any Claude Design output are web artifacts (HTML/CSS/JS); the target is Qt with QSS, which is a CSS *subset* — no flexbox/grid, a limited selector set, and no CSS transitions/animations. Treat the prototype as a *visual spec*: token *values* (palette, spacing, radii, font sizes/families) port 1:1 into `theme/tokens.py`, but layout is rebuilt with Qt layouts and motion is re-expressed via `QPropertyAnimation`/`QTimer`. Do not paste web CSS into `app.qss`. JWE-48 produces the prototype + tokens (via Claude Design, which can refine the existing `JWE Redesign.html`); JWE-33 consumes the token *values*, not the markup.
 
 New architecture introduced here (all under `jwe/gui/`):
 - `theme/tokens.py` — single source of truth for palette, spacing, radii, font roles (no Qt import)
