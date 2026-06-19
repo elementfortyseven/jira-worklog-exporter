@@ -3,6 +3,12 @@
 This file is the primary context for Claude Code working on this repository.
 **Read it fully before making changes.** The PRD in `docs/PRD_Jira_Worklog_Exporter.md` is authoritative for requirements; this file is the developer's-eye view.
 
+> **History note:** Release-by-release detail (v1.0.0/v1.0.1/v1.1.0 ticket logs),
+> the original build order, and the completed GUI Stages 1–6 implementation/test
+> breakdowns live in `docs/HISTORY.md`. That file is **not** `@`-imported, so it
+> does not load into the session context — read it on demand when you need the
+> archaeology. This file keeps only what steers current work.
+
 ---
 
 ## TL;DR
@@ -92,17 +98,19 @@ Minimum scope for any update:
 - **§13 backlog** if a known issue was resolved or a new one identified
 - **§14 Stages** marked ✅ on completion (existing rule, see GUI Stages workflow above)
 
-Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13, and §14 in a dedicated `docs:` commit if not already current.
+Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13, and §14 in a dedicated `docs:` commit if not already current. At a version transition, append the release summary to `docs/HISTORY.md` rather than letting §1 grow — §1 records the *current* state, `HISTORY.md` records the trail.
 
 ---
 
 ## 1. Project state
 
-**Phase:** v1.1.0 released (2026-06-09). It shipped the two-channel i18n model with runtime language switch and CLI `--lang` (JWE-2), the security foundation (URL allowlist to *.atlassian.net JWE-22; bandit + pip-audit in CI JWE-23), the version single-source-of-truth and pre-release tagging logic (JWE-43/44), the README/docs refresh (JWE-41), and the JWE-6/JWE-7 housekeeping items. The prior v1.0.1 (2026-06-02) shipped the UserSearchWorker Pattern C refactor (JWE-26, fixes crash on fast typing) and the keyring backend bundling fix (JWE-27, restores the "Save token to keyring" feature in shipped binaries); the JWE-31 (cold-start timeout flake, fixed by the 30s timeout bump 7de53d9 — no state leak, no teardown bug) and JWE-29 (date/time coincidence audit; test date literals use day-in-2..27, see §9) follow-ups are resolved against `main`. CLI, service layer, and GUI core functionality are complete.
+**Phase:** v1.1.0 released (2026-06-09). CLI, service layer, and GUI core functionality are complete; the GUI is fully internationalised (two-channel i18n, runtime language switch, CLI `--lang`). The headless-CLI split (JWE-45) has landed: `jwe-cli` carries no Qt in its import graph. Next active work is the v1.2.0 visual redesign (epic JWE-32). Full release-by-release ticket history is in `docs/HISTORY.md`.
 
-**Roadmap.** v1.1.0 (released 2026-06-09) — GUI Stage 6 (JWE-2) complete: two-channel i18n model, full marker resolution, CLI --lang, runtime switch, persistence, 745 tests. Security foundation complete -- URL allowlist to *.atlassian.net (JWE-22) and bandit/pip-audit in CI (JWE-23). README refresh (JWE-41) and the JWE-6/JWE-7 housekeeping items shipped in this release. v1.2.0 (target 2026-06-27) — a purely visual redesign (epic JWE-32): a dark "Technical/Mono" theme, frameless window shell, and card-based section layout, on top of the existing PySide6 widget tree with no functional change. The earlier UX-polish items (inline-validation red border, minimum window size, ad-hoc QSS styling) are absorbed into JWE-32 and delivered there against the new design tokens rather than hand-rolled in v1.1.0 (JWE-3 -> JWE-36, JWE-4 -> JWE-34). v1.3.0 (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme.
+**Roadmap.**
+- **v1.2.0** (target 2026-06-27) — purely visual redesign (epic JWE-32): dark "Technical/Mono" theme, frameless window shell, card-based section layout, on top of the existing PySide6 widget tree with **no functional change**. Earlier UX-polish items are absorbed here (JWE-3 → JWE-36 inline-validation border; JWE-4 → JWE-34 minimum window size). See §14.
+- **v1.3.0** (target 2026-07-11) — User Management v2 (local SQLite cache, wildcard search, CSV/group import, presets; epic JWE-11) and the interaction redesign (replace the shuttle, multi-selects; epic JWE-12), built on the v1.2 theme.
 
-**CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds are attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) was added alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag. GitLab CI has been fully green since JWE-10 (QRadioButton click compatibility fix for the winrm executor). The mirror push to GitLab is manual (never from Claude Code).
+**CI infrastructure.** GitHub Actions is the primary CI and the source of truth for releases (Windows builds attached to GitHub Releases at `v*` tags). GitLab CI (`.gitlab-ci.yml`, Stufe 1: tests only) runs alongside the mirror to give GitLab-only collaborators independent verification of every push to `main` and every tag; green since JWE-10 (QRadioButton click compat fix for the winrm executor). The mirror push to GitLab is **manual** (never from Claude Code).
 
 | Module | State | Notes |
 |---|---|---|
@@ -197,6 +205,8 @@ Granular (if the tenant supports them): `read:issue:jira`, `read:issue-worklog:j
 
 **Critical gotcha: scopes cannot be edited after token creation.** Token rotation = re-pick all scopes. Document this in user-facing error messages.
 
+**Permission layer is AND-coupled with token scopes (not an alternative).** A token with the right scopes still returns zero worklogs if the account lacks the **Browse Projects** / **View All Worklogs** project permission. Both must be satisfied. This is the concrete failure mode the planned `jwe doctor` subcommand (JWE-47) is meant to diagnose.
+
 ---
 
 ## 4. Data flow
@@ -263,21 +273,9 @@ Default file name: `jira_worklogs_<from>_<to>_<timestamp>.csv`.
 
 ---
 
-## 7. Implementation order (suggested)
+## 7. Implementation order (historical)
 
-1. **Verify foundations.** Run `pytest tests/test_url_builder.py tests/test_auth.py` — they must pass before touching anything else.
-2. ✅ **`jwe.api.client`** — finish `connect()` and a generic `request()` method that uses the AuthStrategy + URLBuilder. Wire up retry on 429/5xx with respect for `Retry-After`.
-3. ✅ **`jwe.adf`** — pure function `adf_to_text(adf_node) -> str`. Easiest to test in isolation; build with the fixture file.
-4. ✅ **`jwe.api.user`** — `search_users(query) -> list[User]` and `get_myself() -> User`.
-5. ✅ **`jwe.api.search`** — `iter_issues(jql, fields) -> Iterator[IssueRef]` with `nextPageToken` pagination.
-6. ✅ **`jwe.api.worklog`** — `iter_worklogs(issue_key, since, until) -> Iterator[Worklog]` with offset pagination.
-7. ✅ **`jwe.config`** — dataclass capturing every CLI/GUI input. Validation lives here.
-8. ✅ **`jwe.csv_writer`** — context manager that opens the file, writes header, appends rows, flushes per row.
-9. ✅ **`jwe.exporter`** — orchestrate everything. This is where the data flow in §4 lives.
-9.5. ✅ **`jwe.service`** — service layer consumed by both CLI and GUI. Wraps test_connection, search_users, discover_cloud_id, run_export, keyring-based token persistence, and config_from_env. CLI and GUI import from here, not from exporter/user/tenant_info directly. `ExportConfig.build_auth()` was added to config as part of this step so auth-strategy construction lives in exactly one place.
-10. ✅ **`jwe.cli`** — argparse, env-var fallback, exit codes per PRD §11.
-11. ✅ **`jwe.i18n`** — t(key, lang, **kwargs) with de/en tables, KeyError on unknown key, en fallback for unknown lang.
-12. **`jwe.gui`** — last, because by this point all the building blocks exist. Use PySide6 (Qt6). Run the export in a `QThread` and post progress back to the main thread via Qt signals — never call UI widgets from a worker thread. See §14 for the detailed implementation roadmap.
+All foundation modules are built and green (see the §1 status table). The original suggested build order and per-module notes are archived in `docs/HISTORY.md`. The one rule that still applies: when touching auth/URL plumbing, run `pytest tests/test_url_builder.py tests/test_auth.py` first — they must pass before anything else.
 
 ---
 
@@ -354,12 +352,18 @@ Both GitHub Actions and GitLab CI run a dedicated `security` job on every push (
 
 `__version__` in `src/jwe/__init__.py` is the single source of truth; `pyproject.toml` derives the version via hatchling dynamic versioning. Bump the version only at release boundaries via a `vX.Y.Z` tag, which triggers the Windows binary build and GitHub Release. Milestone or test builds use pre-release tags (`vX.Y.Z-rc1`, published as GitHub pre-releases) — never an ad-hoc version bump in source.
 
+**Version-bump encoding gotcha:** when rewriting version strings or any UTF-8 content from PowerShell, do **not** use `Set-Content` (it adds a BOM and can mangle non-ASCII such as `→`). Use:
+
+```powershell
+[IO.File]::WriteAllText($path, $text, (New-Object Text.UTF8Encoding $false))
+```
+
 ---
 
 ## 10. Known traps (in priority order)
 
 1. **Wrong base URL with service-account token** → 401 with no helpful message. Always go through `URLBuilder`.
-2. **Missing `View All Worklogs` permission** → empty results, no error. Cross-check by counting issues found vs. worklogs returned and warn if the ratio looks suspicious.
+2. **Missing `View All Worklogs` / `Browse Projects` permission** → empty results, no error. The permission layer is AND-coupled with token scopes (§3). Cross-check by counting issues found vs. worklogs returned and warn if the ratio looks suspicious.
 3. **Scope-locked tokens** → 403 on specific endpoints only. Mode A error handler should mention this possibility.
 4. **ADF with embedded mentions and inline cards** → naive text extraction loses the user reference. The fixture covers this.
 5. **Pagination off-by-one** with `startAt`/`maxResults` (worklogs) vs. `nextPageToken` (search) — they're different APIs with different mechanisms.
@@ -371,6 +375,7 @@ Both GitHub Actions and GitLab CI run a dedicated `security` job on every push (
 ## 11. References
 
 - PRD: `docs/PRD_Jira_Worklog_Exporter.md`
+- Release & build history: `docs/HISTORY.md`
 - Atlassian REST API v3: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
 - Service Accounts: https://support.atlassian.com/user-management/docs/manage-api-tokens-for-service-accounts/
 
@@ -388,14 +393,15 @@ Both GitHub Actions and GitLab CI run a dedicated `security` job on every push (
 
 - **Output dir auto-create:** Currently `ExportConfig.validate()` raises if `output_dir` does not exist. For better UX, the default `./exports` should be auto-created on first run, while explicitly user-provided paths still raise (protects against typos). Pick this up during the GUI iteration since the file-picker will need consistent behavior.
 - **Cross-platform builds:** Add `build-macos.yml` and `build-linux.yml` GitHub Actions workflows after the first GUI implementation. macOS requires Code Signing and Notarization; Linux is best packaged as AppImage. Initially acceptable without signing for internal distribution — document the bypass procedure for users.
-- **(Resolved in v1.1.0) auth.py one-shot thread cleanup (JWE-6):** closed after review — `auth.py`'s connection-test / cloud-id workers are genuinely one-shot, for which the `thread.finished → deleteLater` idiom is correct and is additionally hardened with explicit ref-clearing. The 16e3af3 GC race was specific to the long-lived/reused export worker (already on Pattern C). No code change warranted.
-- **(Resolved in v1.1.0) cancel_event granularity in run_export (JWE-7):** `jwe/exporter.py` now checks `cancel_event` inside the worklog pagination loop as well as between issues, so cancellation aborts within a single issue's worklog pages instead of only at the next issue boundary.
+- **`jwe doctor` diagnostic subcommand (JWE-47):** a preflight that checks auth, scopes, and the AND-coupled project-permission layer (Browse Projects / View All Worklogs), so a zero-worklog export is explained rather than silent. The production zero-worklog incident (missing Browse Projects on a scoped token) is the canonical test case.
+
+> Resolved backlog items (JWE-6, JWE-7, and the v1.1.0/v1.0.1 follow-ups) are archived in `docs/HISTORY.md`.
 
 ---
 
-## 14. GUI implementation roadmap
+## 14. GUI roadmap — conventions & active stages
 
-Each stage is one commit and is implemented in a fresh Claude Code session. The mandatory review pattern applies to every stage — see end of this section.
+Stages 1–6 are complete (v1.0.0 → v1.1.0). Their full implementation/test breakdowns are archived in `docs/HISTORY.md`. The conventions below are **permanent** and apply to every remaining stage (the v1.2 redesign stories JWE-33…40 and beyond).
 
 ### i18n-Marker convention (Stages 2–5b)
 
@@ -405,9 +411,7 @@ Every hardcoded UI string (label text, button caption, placeholder, error messag
 self.label.setText("Connection test")  # i18n: auth.btn.test_connection
 ```
 
-This makes the Stage 6 refactoring mechanical (grep for `# i18n:`) rather than a hunt through the codebase.
-
-v1.0.0 released after Stage 5b; v1.0.1 followed as a patch. Stage 6 is complete as of v1.1.0 (see below). The visual UX polish originally bundled with it (inline-validation styling, minimum window size, QSS theming) has been pulled into the v1.2 visual redesign epic JWE-32 — see "v1.2 — Visual redesign" at the end of this section.
+This makes a later i18n refactoring mechanical (grep for `# i18n:`) rather than a hunt through the codebase.
 
 ### Two-channel i18n convention (established in Stage 6, applies permanently)
 
@@ -417,155 +421,11 @@ Rule of thumb: if the string appears in a log file or in response to an error co
 
 The `test_no_i18n_markers_remain_in_src` test in `tests/test_i18n.py` gates regressions: any new hardcoded UI string that is not immediately wired through `t()` or `diag()` will cause CI to fail.
 
----
-
-### ✅ Stage 1 — Skeleton & Infrastructure
-
-**Goal:** Launchable window with the full structural frame; no real functionality yet.
-
-**Implements:**
-- `MainWindow(QMainWindow)` — Fusion style, orchestrator only
-- Hybrid layout: `StatusWidget` anchored at the bottom, `QScrollArea` above containing `AuthWidget`, `UserSearchWidget`, `FilterWidget`, `OutputWidget` as empty `QGroupBox` stubs
-- Language toggle button (🇩🇪 / 🇬🇧), `self._lang`, `language_changed` signal, `retranslate_ui(lang)` stubs on every widget
-- `QSettings` save/restore for window geometry only
-
-**Tests (pytest-qt):**
-- `MainWindow` instantiates without error
-- Language toggle flips `self._lang` and calls `retranslate_ui` on all section widgets
-- QSettings geometry round-trip (save → restore)
-
----
-
-### ✅ Stage 2 — Auth Panel & Connection Test
-
-**Goal:** Fully functional auth section; real Jira connection testable.
-
-**Implements:**
-- `ServiceAccountPanel` and `UserTokenPanel` as separate `QWidget` subclasses inside a `QStackedWidget`
-- Radio buttons for mode switch (outside the stack, always visible)
-- All auth fields: Cloud ID, service-account email, API token (masked), auth-header dropdown, site URL, email
-- Cloud-ID-Discover dialog (site URL → async fetch via worker → fill Cloud ID field)
-- Worker-based connection test (first use of `QThread` / `moveToThread` pattern)
-- Keyring integration: auto-load token on startup, save-checkbox, graceful degradation (info label + disabled checkbox on `RuntimeError`)
-- `QSettings` save/restore for all auth fields (not token)
-- All strings marked `# i18n: <key>`
-
-**Tests (pytest-qt):**
-- Radio switch changes `QStackedWidget` index
-- `ServiceAccountPanel` exposes exactly the SA fields; `UserTokenPanel` the user-token fields
-- Connect button starts worker and emits signal (service mocked)
-- `RuntimeError` from keyring → checkbox is disabled
-- Token auto-filled on init when keyring returns a value
-
----
-
-### ✅ Stage 3 — User Search & Shuttle
-
-**Goal:** User lookup and multi-selection fully operational.
-
-**Implements:**
-- `QLineEdit` + `QTimer` single-shot debounce (400 ms) triggering `search_users()` worker
-- Left `QListWidget`: search results (displayName + email)
-- Right `QListWidget`: selected users
-- `→` / `←` arrow buttons; double-click shortcut on both lists
-- Empty search term cancels pending timer, makes no API call
-- All strings marked `# i18n: <key>`
-
-**Tests (pytest-qt):**
-- Debounce timer fires worker after delay (service mocked)
-- Double-click on left list moves item to right list
-- Arrow button moves selected items between lists
-- Empty search string produces no worker start
-
----
-
-### ✅ Stage 4 — Filter, Output & Form Validation
-
-**Goal:** Complete input form; export button correctly gated.
-
-**Implements:**
-- `FilterWidget`: `QDateEdit` from/to (default: current month), project keys `QLineEdit` (optional)
-- `OutputWidget`: output directory `QLineEdit` + `QFileDialog` browse button, delimiter dropdown, column-profile dropdown, API-version dropdown
-- Central validation: export button enabled only when ≥1 user selected and all required fields valid
-- `QSettings` save/restore for: `auth_mode`, `cloud_id`, `service_account_email`, `site_url`, `email`, `auth_header`, `column_profile`, `delimiter`, `output_dir`, `api_version`, `lang`; **not** saved: `api_token`, `user_account_ids`, `from_date`, `to_date`
-- All strings marked `# i18n: <key>`
-
-**Tests (pytest-qt):**
-- Export button disabled when no users in right list
-- Export button disabled when date range is invalid
-- Export button enabled when form is complete and valid
-- QSettings round-trip for every persisted field
-
----
-
-### ✅ Stage 5a — ExportWorker & Progress Display
-
-**Goal:** Export runs end-to-end; progress visible in UI.
-
-**Implements:**
-- `ExportWorker(QObject)` moved to `QThread` via `moveToThread`; consumes `service.run_export()` generator
-- Signals: `progress_updated(int, int)`, `row_written()`, `export_finished(str)`, `error_occurred(str)`
-- `StatusWidget` wired up: progress bar, issue/worklog counters, scrollable read-only log panel (last 50 lines)
-- Export button triggers worker start; status panel becomes active
-- All strings marked `# i18n: <key>`
-
-**Tests (pytest-qt):**
-- Worker emits `progress_updated` from mocked generator
-- Worker emits `export_finished` with correct output path
-- Worker emits `error_occurred` on exception from generator
-- StatusWidget progress bar updates on `progress_updated` signal
-- Log panel receives messages appended by worker
-
----
-
-### ✅ Stage 5b — Cancel, closeEvent & Result Actions
-
-**Goal:** Safe cancellation, exit protection, post-export affordances.
-
-**Implements:**
-- Cancel button sets `threading.Event`; worker stops cleanly between generator yields
-- Cancel button visible and enabled only during active export
-- `closeEvent` checks for active export; shows `QMessageBox` confirmation before allowing close
-- „CSV öffnen" / „Ordner öffnen" buttons appear after `export_finished`; use `QDesktopServices.openUrl`
-- All strings marked `# i18n: <key>`
-
-**Tests (pytest-qt):**
-- Cancel button sets the `threading.Event`
-- Worker exits loop after event is set
-- `closeEvent` during active export triggers confirmation dialog (`QMessageBox` mocked)
-- „CSV öffnen" button calls `QDesktopServices.openUrl` with correct path
-
----
-
-### ✅ Stage 6 — Full i18n (v1.1.0)
-
-**Goal:** Fully internationalised GUI and CLI; runtime language switch; two-channel i18n model.
-
-**Implements:**
-- Two-channel i18n model in `jwe/i18n.py`: `STRINGS` + `t(key, lang)` for localized presentation; `DIAGNOSTICS` + `diag(key)` (no lang param) for English-only logs and error/failure messages
-- All 72 `# i18n:` markers resolved across 7 files: `t()` everywhere for UI strings, `diag()` for log panel and error lines; zero markers remain in `src/`
-- `retranslate_ui` bodies filled in on all five section widgets; `retranslate_ui` re-sets only `t()` strings (diagnostic/log strings do not change on language switch)
-- `ExportProgress.message` field removed (was dead); `exporter.msg.*` keys dropped from all tables
-- CLI: `--lang {de,en}` on `export` subcommand; errors via `diag()`, progress/summary via `t(key, lang)`
-- Language persisted via `QSettings`; runtime toggle works across all presentation strings
-
-**Tests (pytest-qt, 745 tests total):**
-- STRINGS en/de parity; every key resolves via `t()` for both locales without `KeyError`
-- Every DIAGNOSTICS key resolves via `diag()` without `KeyError`; no double-home with STRINGS
-- Placeholder coverage: every `{param}`-bearing template tested with its documented kwargs
-- Runtime switch: MainWindow starts in de, toggle updates section title, button, counter, placeholder to en equivalents; diagnostic strings confirmed identical before and after toggle
-- Language persistence: toggle to en, close, reconstruct with same QSettings, assert en restored
-- Marker-grep gate: `test_no_i18n_markers_remain_in_src` scans `src/` and asserts zero `# i18n:` markers; runs in CI on every push
-
-> The inline-validation styling and minimum-window-size items that previously lived here moved to the v1.2 visual redesign (JWE-32): the error border is delivered as a token-based QSS class in JWE-36, the minimum window size is enforced by the frameless shell in JWE-34.
-
----
-
 ### v1.2 — Visual redesign (epic JWE-32)
 
 A purely visual and structural re-skin on top of the existing PySide6 widget tree — no change to data flow, auth, export, CSV, or threading logic. Direction "Technical/Mono": navy base, cyan neon accent, monospace labels/numbers, bracketed section indices, card-based sections, terminal-style export log. The interactive prototype lives outside the repo (`JWE Redesign.html`); the prototype and the extracted token values should be committed under `docs/design/` before JWE-33 starts (tracked as JWE-48).
 
-**Web -> QSS translation (plan for this in JWE-33):** the prototype and any Claude Design output are web artifacts (HTML/CSS/JS); the target is Qt with QSS, which is a CSS *subset* — no flexbox/grid, a limited selector set, and no CSS transitions/animations. Treat the prototype as a *visual spec*: token *values* (palette, spacing, radii, font sizes/families) port 1:1 into `theme/tokens.py`, but layout is rebuilt with Qt layouts and motion is re-expressed via `QPropertyAnimation`/`QTimer`. Do not paste web CSS into `app.qss`. JWE-48 produces the prototype + tokens (via Claude Design, which can refine the existing `JWE Redesign.html`); JWE-33 consumes the token *values*, not the markup.
+**Web → QSS translation (plan for this in JWE-33):** the prototype and any Claude Design output are web artifacts (HTML/CSS/JS); the target is Qt with QSS, which is a CSS *subset* — no flexbox/grid, a limited selector set, and no CSS transitions/animations. Treat the prototype as a *visual spec*: token *values* (palette, spacing, radii, font sizes/families) port 1:1 into `theme/tokens.py`, but layout is rebuilt with Qt layouts and motion is re-expressed via `QPropertyAnimation`/`QTimer`. Do not paste web CSS into `app.qss`. JWE-48 produces the prototype + tokens (via Claude Design, which can refine the existing `JWE Redesign.html`); JWE-33 consumes the token *values*, not the markup.
 
 New architecture introduced here (all under `jwe/gui/`):
 - `theme/tokens.py` — single source of truth for palette, spacing, radii, font roles (no Qt import)
