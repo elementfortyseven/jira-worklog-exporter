@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JWE — QSS-Richtung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --sans:"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+    --bg:#060b13; --panel:#0e1825; --panel2:#0a1320;
+    --line:rgba(126,166,206,.14); --tx:#e9eff7; --tx2:#93a4ba; --tx3:#5b6d82;
+    --ac:#22d3ee; --ink:#03171c;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.6;}
+  .wrap{max-width:960px;margin:0 auto;padding:64px 40px 120px;}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--ac);}
+  h1{font-size:34px;font-weight:600;letter-spacing:-.01em;margin:14px 0 8px;}
+  .lead{color:var(--tx2);font-size:15px;max-width:640px;}
+  h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--tx2);
+    margin:56px 0 18px;padding-bottom:10px;border-bottom:1px solid var(--line);}
+  .topline{height:1px;background:linear-gradient(90deg,transparent,var(--ac),transparent);opacity:.5;margin-bottom:40px;}
+
+  /* palette */
+  .pal{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .sw{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .sw .chip{height:64px;}
+  .sw .meta{padding:11px 13px;}
+  .sw .nm{font-size:12.5px;font-weight:600;}
+  .sw .hex{font-family:var(--mono);font-size:11px;color:var(--tx3);margin-top:2px;}
+
+  /* token table */
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);}
+  th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);font-weight:600;}
+  td.k{font-family:var(--mono);color:var(--ac);font-size:12px;}
+  td.v{font-family:var(--mono);color:var(--tx2);font-size:12px;}
+
+  /* code */
+  .codecard{position:relative;background:#070d15;border:1px solid var(--line);border-radius:12px;}
+  .codecard .bar{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);}
+  .codecard .bar .fn{font-family:var(--mono);font-size:11.5px;color:var(--tx2);}
+  .codecard .bar .copy{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ac);
+    background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.3);border-radius:6px;padding:4px 10px;cursor:pointer;}
+  .codecard .bar .copy:hover{background:rgba(34,211,238,.16);}
+  pre{margin:0;padding:18px 16px;overflow-x:auto;font-family:var(--mono);font-size:12px;line-height:1.65;color:#bcd0e4;}
+  pre .c{color:var(--tx3);} pre .s{color:#8fd9c0;} pre .p{color:var(--ac);} pre .n{color:#e7b079;}
+
+  .note{display:flex;gap:12px;background:rgba(34,211,238,.05);border:1px solid rgba(34,211,238,.22);
+    border-radius:12px;padding:15px 17px;font-size:13.5px;color:var(--tx2);margin-top:18px;}
+  .note b{color:var(--tx);}
+  .note .i{color:var(--ac);flex:0 0 auto;font-family:var(--mono);font-weight:600;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;}
+  @media(max-width:760px){.pal{grid-template-columns:repeat(2,1fr);}.grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Jira Worklog Exporter · Design → Code</div>
+  <h1>QSS-Richtung</h1>
+  <p class="lead">Übersetzung des gewählten <b style="color:var(--tx)">Technical/Mono</b>-Mockups in PySide6/Qt-Stylesheets: monospace Labels &amp; Werte, kantige 6/4&nbsp;px-Radien, Bracket-Indizes. Glow-Effekte bleiben optional und werden über <span style="font-family:var(--mono);color:var(--ac)">QGraphicsDropShadowEffect</span> ergänzt, da QSS kein <code>box-shadow</code> kennt.</p>
+
+  <h2>01 · Farb-Tokens</h2>
+  <div class="topline"></div>
+  <div class="pal">
+    <div class="sw"><div class="chip" style="background:#05090f"></div><div class="meta"><div class="nm">Fenster</div><div class="hex">#05090F</div></div></div>
+    <div class="sw"><div class="chip" style="background:#0a1019"></div><div class="meta"><div class="nm">Karte / Sektion</div><div class="hex">#0A1019</div></div></div>
+    <div class="sw"><div class="chip" style="background:#060c14"></div><div class="meta"><div class="nm">Eingabefeld</div><div class="hex">#060C14</div></div></div>
+    <div class="sw"><div class="chip" style="background:#22d3ee"></div><div class="meta"><div class="nm">Akzent / Neon</div><div class="hex">#22D3EE</div></div></div>
+    <div class="sw"><div class="chip" style="background:#e9eff7"></div><div class="meta"><div class="nm">Text primär</div><div class="hex">#E9EFF7</div></div></div>
+    <div class="sw"><div class="chip" style="background:#93a4ba"></div><div class="meta"><div class="nm">Text sekundär</div><div class="hex">#93A4BA</div></div></div>
+    <div class="sw"><div class="chip" style="background:#34d399"></div><div class="meta"><div class="nm">Erfolg</div><div class="hex">#34D399</div></div></div>
+    <div class="sw"><div class="chip" style="background:#fb7185"></div><div class="meta"><div class="nm">Fehler</div><div class="hex">#FB7185</div></div></div>
+  </div>
+
+  <h2>02 · Maße & Typografie</h2>
+  <div class="topline"></div>
+  <div class="grid2">
+    <table>
+      <tr><th>Token</th><th>Wert</th></tr>
+      <tr><td class="k">radius.card</td><td class="v">6 px (mono)</td></tr>
+      <tr><td class="k">radius.input</td><td class="v">4 px (mono)</td></tr>
+      <tr><td class="k">border.hairline</td><td class="v">1px rgba(120,160,200,.16)</td></tr>
+      <tr><td class="k">border.focus</td><td class="v">1px #22D3EE</td></tr>
+      <tr><td class="k">space.section</td><td class="v">16 px</td></tr>
+      <tr><td class="k">space.field</td><td class="v">14 px</td></tr>
+    </table>
+    <table>
+      <tr><th>Rolle</th><th>Schrift</th></tr>
+      <tr><td class="k">Body / Felder</td><td class="v">Segoe UI 13 px</td></tr>
+      <tr><td class="k">Sektionstitel</td><td class="v">Segoe UI 15 px · 600</td></tr>
+      <tr><td class="k">Label</td><td class="v">JetBrains Mono 11 px · UPPERCASE · +0.08em</td></tr>
+      <tr><td class="k">Werte / IDs / Log</td><td class="v">JetBrains Mono 12 px</td></tr>
+      <tr><td class="k">Zähler (Issues/WL)</td><td class="v">Mono 19 px · tabular</td></tr>
+    </table>
+  </div>
+
+  <h2>03 · QSS — global stylesheet</h2>
+  <div class="topline"></div>
+  <div class="codecard">
+    <div class="bar"><span class="fn">app.setStyleSheet( … )  ·  jwe/gui/style.qss</span><button class="copy" id="copyBtn">kopieren</button></div>
+    <pre id="code"><span class="c">/* ---- Fenster & Basis ---- */</span>
+<span class="p">QMainWindow</span>, <span class="p">QWidget</span> { background: <span class="n">#05090F</span>; color: <span class="n">#E9EFF7</span>;
+    font-family: <span class="s">"Segoe UI"</span>; font-size: 13px; }
+
+<span class="c">/* ---- Sektion (QGroupBox) als Karte ---- */</span>
+<span class="p">QGroupBox</span> { background: <span class="n">#0A1019</span>; border: 1px solid rgba(120,160,200,0.16);
+    border-radius: 6px; margin-top: 14px; padding: 18px 16px 14px; }
+<span class="p">QGroupBox::title</span> { subcontrol-origin: margin; left: 14px; padding: 0 6px;
+    color: <span class="n">#E9EFF7</span>; font-weight: 600; font-size: 15px; }
+
+<span class="c">/* ---- Eingabefelder ---- */</span>
+<span class="p">QLineEdit</span>, <span class="p">QComboBox</span>, <span class="p">QDateEdit</span> {
+    background: <span class="n">#060C14</span>; color: <span class="n">#E9EFF7</span>;
+    border: 1px solid rgba(120,160,200,0.16); border-radius: 4px;
+    padding: 9px 11px; font-family: <span class="s">"JetBrains Mono"</span>;
+    selection-background-color: <span class="n">#22D3EE</span>;
+    selection-color: <span class="n">#03171C</span>; }
+<span class="p">QLineEdit:focus</span>, <span class="p">QComboBox:focus</span>, <span class="p">QDateEdit:focus</span> {
+    border: 1px solid <span class="n">#22D3EE</span>; background: <span class="n">#0C1826</span>; }
+<span class="c">/* Token-Feld: Zeichenabstand via QFont.setLetterSpacing(QFont.AbsoluteSpacing, 2) — QSS kennt kein letter-spacing */</span>
+
+<span class="c">/* ---- Primärer Button (objectName: primaryBtn) ---- */</span>
+<span class="p">QPushButton</span> { background: rgba(126,166,206,0.04); color: <span class="n">#E9EFF7</span>;
+    border: 1px solid rgba(126,166,206,0.22); border-radius: 8px; padding: 9px 16px; }
+<span class="p">QPushButton:hover</span> { border-color: <span class="n">#22D3EE</span>; color: <span class="n">#22D3EE</span>; }
+<span class="p">QPushButton#primaryBtn</span> { background: <span class="n">#22D3EE</span>; color: <span class="n">#03171C</span>;
+    border: none; font-weight: 600; padding: 12px 22px; }
+<span class="p">QPushButton#primaryBtn:hover</span> { background: <span class="n">#4EE6F7</span>; }
+<span class="p">QPushButton#primaryBtn:disabled</span> { background: rgba(126,166,206,0.12); color: <span class="n">#5B6D82</span>; }
+
+<span class="c">/* ---- Radio / Checkbox / Listen ---- */</span>
+<span class="p">QRadioButton</span>, <span class="p">QCheckBox</span> { color: <span class="n">#93A4BA</span>; spacing: 8px; }
+<span class="p">QCheckBox::indicator</span>, <span class="p">QRadioButton::indicator</span> { width: 16px; height: 16px;
+    border: 1px solid rgba(126,166,206,0.3); border-radius: 5px; background: <span class="n">#060C14</span>; }
+<span class="p">QCheckBox::indicator:checked</span>, <span class="p">QRadioButton::indicator:checked</span> {
+    background: <span class="n">#22D3EE</span>; border-color: <span class="n">#22D3EE</span>; }
+<span class="p">QListWidget</span> { background: <span class="n">#060C14</span>; border: 1px solid rgba(126,166,206,0.12);
+    border-radius: 8px; padding: 4px; }
+<span class="p">QListWidget::item:selected</span> { background: rgba(34,211,238,0.12);
+    color: <span class="n">#E9EFF7</span>; border-radius: 6px; }
+
+<span class="c">/* ---- Fortschritt & Log ---- */</span>
+<span class="p">QProgressBar</span> { background: <span class="n">#060C14</span>; border: none; border-radius: 4px; height: 6px; }
+<span class="p">QProgressBar::chunk</span> { background: <span class="n">#22D3EE</span>; border-radius: 4px; }
+<span class="p">QTextEdit</span> { background: <span class="n">#060C14</span>; border: 1px solid rgba(126,166,206,0.08);
+    border-radius: 8px; font-family: <span class="s">"JetBrains Mono"</span>; font-size: 12px; color: <span class="n">#93A4BA</span>; }
+
+<span class="c">/* ---- Scrollbar ---- */</span>
+<span class="p">QScrollBar:vertical</span> { background: transparent; width: 10px; margin: 2px; }
+<span class="p">QScrollBar::handle:vertical</span> { background: rgba(126,166,206,0.18); border-radius: 5px; min-height: 30px; }
+<span class="p">QScrollBar::add-line</span>, <span class="p">QScrollBar::sub-line</span> { height: 0; }</pre>
+  </div>
+
+  <div class="note"><span class="i">★</span><div><b>Neon-Glow (Variante B)</b> entsteht nicht über QSS, sondern pro Widget: <span style="font-family:var(--mono);color:var(--ac)">fx = QGraphicsDropShadowEffect(blurRadius=22, color=QColor(34,211,238,140), offset=0)</span> auf den Primär-Button, die Sektions-Icons und das Verbindungs-Chip setzen. Der animierte Marquee-Balken im laufenden Export = <span style="font-family:var(--mono);color:var(--ac)">QProgressBar(range 0,0)</span> wie bereits in <code>status.py</code>.</div></div>
+
+  <div class="note"><span class="i">›</span><div><b>Mono-Charakter:</b> Feld-Labels als <code>QLabel</code> mit <span style="font-family:var(--mono);color:var(--ac)">font-family:"JetBrains Mono"; text-transform:uppercase; letter-spacing:.08em</span> (per Stylesheet oder <code>QFont</code> setzen, da QSS kein <code>letter-spacing</code> kann — dann <code>QFont.setLetterSpacing</code>). Sektions-Index als <code>„[ 01 ]“</code> vor dem Titel, dezenter Cyan-Tick (2&nbsp;px) oben links je Karte, subtile Scanline-Textur als <code>QWidget</code>-Hintergrund-Pixmap.</div></div>
+
+  <div class="note"><span class="i">›</span><div><b>Rahmenlose Titelleiste:</b> <span style="font-family:var(--mono);color:var(--ac)">setWindowFlags(Qt.FramelessWindowHint)</span> + eigene <code>QWidget</code>-Titelzeile (Logo, Titel, DE/EN-Toggle, min/max/close). Drag über <code>mousePressEvent</code>/<code>mouseMoveEvent</code> auf der Titelzeile. Die Sprach- und Auth-Mode-Umschalter sind segmentierte Pills statt nativer Radios.</div></div>
+</div>
+
+<script>
+  document.getElementById("copyBtn").addEventListener("click", function(){
+    var txt = document.getElementById("code").innerText;
+    navigator.clipboard.writeText(txt).then(()=>{ this.textContent="kopiert ✓"; setTimeout(()=>this.textContent="kopieren",1400); });
+  });
+</script>
+</body>
+</html>
