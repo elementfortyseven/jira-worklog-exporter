@@ -10,9 +10,11 @@ def main(lang: str | None = None) -> int:
     from PySide6.QtWidgets import QApplication
 
     from jwe.gui.main_window import MainWindow
+    from jwe.gui.theme import apply_theme
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    apply_theme(app)
     window = MainWindow(initial_lang=lang)
     window.show()
     return app.exec()

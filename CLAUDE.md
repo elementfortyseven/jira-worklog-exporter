@@ -129,7 +129,8 @@ Version transitions (release of any `vX.Y.Z`) trigger a full review of §1, §13
 | `jwe.i18n` | ✅ implemented | Two-channel model: STRINGS + t(key, lang) for localized presentation; DIAGNOSTICS + diag(key) for English-only log/error messages. 97% coverage, 244 tests. |
 | `jwe.cli` | ✅ implemented | argparse with export and discover-cloud-id subcommands, exit codes 0-6, tqdm progress bar, KeyboardInterrupt drain loop; --lang on export subcommand; errors via diag(), progress/summary via t(key, lang); headless (no Qt in import graph); 83% coverage, 22 tests |
 | `jwe.gui` | ✅ stages 1-5b + Stage 6 complete | Full GUI implementation: AuthWidget with dual-mode panels, UserSearchWidget with debounced search, FilterWidget, OutputWidget, StatusWidget with progress + cancel + result buttons; ExportWorker and UserSearchWorker via Pattern C (persistent worker threads with lazy start); closeEvent confirmation; QSettings round-trip for all persistent fields; full i18n (two-channel model, runtime language switch, QSettings persistence). 754 tests green across the suite. Visual redesign (theme, frameless shell, cards) tracked as epic JWE-32 for v1.2.0. |
-| `jwe.gui_main` | 🟡 stage 1 (skeleton) | QApplication bootstrapper; 0% unit coverage (requires display) |
+| `jwe.gui.theme` | ✅ JWE-33 | Design tokens SSOT (tokens.py, Qt-free), QSS template (app.qss), apply_theme() loader with lazy Qt imports, bundled JetBrains Mono Regular/Medium/SemiBold + OFL.txt. 78 tests: parametrized drift guard (color/radius/space/font/type vs tokens.json), Qt-free import guard, QSS completeness, apply_theme() behavior, font registration. |
+| `jwe.gui_main` | 🟡 stage 1 (skeleton) | QApplication bootstrapper; calls apply_theme() after setStyle("Fusion"); 0% unit coverage (requires display) |
 
 Tests follow the same pattern: implemented for implemented modules, stubbed for the rest.
 
@@ -434,7 +435,9 @@ New architecture introduced here (all under `jwe/gui/`):
 - a frameless `MainWindow` (custom title bar with DE/EN toggle, min/max/close, window move) replacing OS chrome
 - restyled form controls, identity strip + status chips, themed export footer, and a motion layer (`QPropertyAnimation`/`QTimer`/`QGraphicsDropShadowEffect`) with a reduced-motion fallback
 
-Child stories: JWE-33 (tokens/theme), JWE-34 (frameless shell, absorbs JWE-4), JWE-35 (section cards), JWE-36 (form controls, absorbs JWE-3's error border), JWE-37 (identity strip/chips), JWE-38 (interim user/chip styling, pre-JWE-12), JWE-39 (export footer), JWE-40 (motion). Keep the auth-mode controls as `QRadioButton`s (styled as a segmented control) for winrm test compatibility per §9. Each story stays one Stage = one commit = one session; §1 and this section are updated on completion.
+Child stories: JWE-33 ✅ (tokens/theme), JWE-34 (frameless shell, absorbs JWE-4), JWE-35 (section cards), JWE-36 (form controls, absorbs JWE-3's error border), JWE-37 (identity strip/chips), JWE-38 (interim user/chip styling, pre-JWE-12), JWE-39 (export footer), JWE-40 (motion). Keep the auth-mode controls as `QRadioButton`s (styled as a segmented control) for winrm test compatibility per §9. Each story stays one Stage = one commit = one session; §1 and this section are updated on completion.
+
+**JWE-33 delivered (2026-06-20):** `jwe/gui/theme/` created: `tokens.py` (SSOT mirror of `docs/design/tokens.json`, Qt-free, importable without PySide6), `app.qss` (QSS template with `%(key)s` placeholders for all token values), `__init__.py` with `apply_theme(app)` (lazy Qt imports — deferred to function bodies so the package can be imported without loading Qt). Bundled JetBrains Mono Regular/Medium/SemiBold + OFL.txt. `gui_main.py` calls `apply_theme()` after `setStyle("Fusion")`. `jwe/gui/__init__.py` refactored to lazy `__getattr__` re-export (prerequisite for the Qt-free import guard). `build-windows.yml` ships QSS and fonts via `--add-data` on the jwe-gui step; `pyproject.toml` declares them via `force-include`. 78 new tests green; full suite 832 passed.
 
 ### Review pattern (mandatory for every stage)
 
