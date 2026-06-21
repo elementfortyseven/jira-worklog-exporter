@@ -1,11 +1,11 @@
-"""Tests for MainWindow -- Stages 1, 4, and connection-verify wiring."""
+"""Tests for MainWindow -- Stages 1, 4, connection-verify wiring, and JWE-34 shell."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtCore import QByteArray, QDate, QSettings, Qt
+from PySide6.QtCore import QByteArray, QDate, QSettings, QSize, Qt
 from PySide6.QtWidgets import QListWidgetItem
 
 from jwe.api.user import User
@@ -34,23 +34,114 @@ class TestMainWindowInstantiates:
         assert w._lang == "en"
 
 
-class TestLanguageToggle:
-    """Toggle button flips _lang and calls retranslate_ui on all section widgets."""
+# ---------------------------------------------------------------------------
+# JWE-34: Frameless shell
+# ---------------------------------------------------------------------------
 
-    def test_flips_lang_de_to_en(self, qtbot, main_window: MainWindow) -> None:
-        assert main_window._lang == "de"
-        qtbot.mouseClick(main_window.lang_btn, Qt.MouseButton.LeftButton)
-        assert main_window._lang == "en"
 
-    def test_flips_lang_en_to_de(self, qtbot, isolated_settings: QSettings) -> None:
-        w = MainWindow(initial_lang="en", _settings=isolated_settings)
-        qtbot.addWidget(w)
-        qtbot.mouseClick(w.lang_btn, Qt.MouseButton.LeftButton)
-        assert w._lang == "de"
+class TestFramelessShell:
+    """Frameless window flags and structural assertions."""
 
-    def test_calls_retranslate_ui_on_all_five_widgets(
+    def test_frameless_hint_set(self, main_window: MainWindow) -> None:
+        assert main_window.windowFlags() & Qt.WindowType.FramelessWindowHint
+
+    def test_translucent_background_set(self, main_window: MainWindow) -> None:
+        assert main_window.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+    def test_window_frame_widget_present(self, main_window: MainWindow) -> None:
+        assert hasattr(main_window, "_window_frame")
+        assert main_window._window_frame.objectName() == "windowFrame"
+
+    def test_minimum_size_800x600(self, main_window: MainWindow) -> None:
+        assert main_window.minimumSize() == QSize(800, 600)
+
+    def test_title_bar_present(self, main_window: MainWindow) -> None:
+        assert hasattr(main_window, "title_bar")
+
+    def test_title_bar_has_brand_label(self, main_window: MainWindow) -> None:
+        assert main_window.title_bar.brand_label is not None
+
+    def test_title_bar_has_de_btn(self, main_window: MainWindow) -> None:
+        assert main_window.title_bar.de_btn is not None
+
+    def test_title_bar_has_en_btn(self, main_window: MainWindow) -> None:
+        assert main_window.title_bar.en_btn is not None
+
+    def test_title_bar_has_win_min_btn(self, main_window: MainWindow) -> None:
+        assert main_window.title_bar.win_min_btn is not None
+
+    def test_title_bar_has_win_max_btn(self, main_window: MainWindow) -> None:
+        assert main_window.title_bar.win_max_btn is not None
+
+    def test_title_bar_has_win_close_btn(self, main_window: MainWindow) -> None:
+        assert main_window.title_bar.win_close_btn is not None
+
+    def test_win_min_btn_emits_minimize_requested(
         self, qtbot, main_window: MainWindow
     ) -> None:
+        with qtbot.waitSignal(main_window.title_bar.minimize_requested, timeout=1000):
+            main_window.title_bar.win_min_btn.click()
+
+    def test_win_max_toggles_maximized_state(self, main_window: MainWindow) -> None:
+        assert not main_window._maximized
+        main_window._toggle_max_restore()
+        assert main_window._maximized
+        main_window._toggle_max_restore()
+        assert not main_window._maximized
+
+    def test_win_close_btn_emits_close_requested(
+        self, main_window: MainWindow
+    ) -> None:
+        received: list[bool] = []
+        # Disconnect from close() so the fixture window is not closed mid-test.
+        main_window.title_bar.close_requested.disconnect(main_window.close)
+        main_window.title_bar.close_requested.connect(lambda: received.append(True))
+        main_window.title_bar.win_close_btn.click()
+        assert received == [True]
+
+    def test_maximize_saves_pre_max_geometry(self, main_window: MainWindow) -> None:
+        assert main_window._pre_max_geometry is None
+        main_window._toggle_max_restore()
+        assert main_window._pre_max_geometry is not None
+
+    def test_maximize_disables_shadow_effect(self, main_window: MainWindow) -> None:
+        assert main_window._shadow_effect is not None
+        main_window._toggle_max_restore()
+        assert not main_window._shadow_effect.isEnabled()
+
+    def test_restore_re_enables_shadow_effect(self, main_window: MainWindow) -> None:
+        main_window._toggle_max_restore()
+        main_window._toggle_max_restore()
+        assert main_window._shadow_effect is not None
+        assert main_window._shadow_effect.isEnabled()
+
+
+# ---------------------------------------------------------------------------
+# JWE-34: Language toggle (replaces old lang_btn tests)
+# ---------------------------------------------------------------------------
+
+
+class TestLanguageToggle:
+    """DE/EN segmented toggle flips _lang and retranslates all section widgets."""
+
+    def test_click_en_sets_lang_en(self, main_window: MainWindow) -> None:
+        assert main_window._lang == "de"
+        main_window.title_bar.en_btn.click()
+        assert main_window._lang == "en"
+
+    def test_click_de_from_en_sets_lang_de(self, qtbot, isolated_settings: QSettings) -> None:
+        w = MainWindow(initial_lang="en", _settings=isolated_settings)
+        qtbot.addWidget(w)
+        w.title_bar.de_btn.click()
+        assert w._lang == "de"
+
+    def test_clicking_same_lang_is_noop(self, main_window: MainWindow) -> None:
+        received: list[str] = []
+        main_window.language_changed.connect(received.append)
+        main_window.title_bar.de_btn.click()  # already "de"
+        assert received == []
+
+    def test_calls_retranslate_ui_on_all_five_widgets(self, main_window: MainWindow) -> None:
         with (
             patch.object(main_window.auth_widget, "retranslate_ui") as m_auth,
             patch.object(main_window.user_search_widget, "retranslate_ui") as m_user,
@@ -58,7 +149,7 @@ class TestLanguageToggle:
             patch.object(main_window.output_widget, "retranslate_ui") as m_output,
             patch.object(main_window.status_widget, "retranslate_ui") as m_status,
         ):
-            qtbot.mouseClick(main_window.lang_btn, Qt.MouseButton.LeftButton)
+            main_window.title_bar.en_btn.click()
 
         m_auth.assert_called_once_with("en")
         m_user.assert_called_once_with("en")
@@ -66,13 +157,36 @@ class TestLanguageToggle:
         m_output.assert_called_once_with("en")
         m_status.assert_called_once_with("en")
 
-    def test_language_changed_signal_emitted(
-        self, qtbot, main_window: MainWindow
-    ) -> None:
+    def test_language_changed_signal_emitted(self, main_window: MainWindow) -> None:
         received: list[str] = []
         main_window.language_changed.connect(received.append)
-        qtbot.mouseClick(main_window.lang_btn, Qt.MouseButton.LeftButton)
+        main_window.title_bar.en_btn.click()
         assert received == ["en"]
+
+    def test_de_btn_active_on_init(self, main_window: MainWindow) -> None:
+        assert main_window.title_bar.de_btn.property("active") is True
+
+    def test_en_btn_not_active_on_init(self, main_window: MainWindow) -> None:
+        assert main_window.title_bar.en_btn.property("active") is False
+
+    def test_en_btn_active_after_lang_switch(self, main_window: MainWindow) -> None:
+        main_window.title_bar.en_btn.click()
+        assert main_window.title_bar.en_btn.property("active") is True
+        assert main_window.title_bar.de_btn.property("active") is False
+
+    def test_lang_persisted_to_qsettings(self, qtbot, tmp_path: Path) -> None:
+        settings_file = str(tmp_path / "lang_test.ini")
+        s1 = QSettings(settings_file, QSettings.Format.IniFormat)
+        w1 = MainWindow(_settings=s1)
+        qtbot.addWidget(w1)
+        w1.title_bar.en_btn.click()
+        w1.close()
+        s1.sync()
+
+        s2 = QSettings(settings_file, QSettings.Format.IniFormat)
+        w2 = MainWindow(_settings=s2)
+        qtbot.addWidget(w2)
+        assert w2._lang == "en"
 
 
 class TestQSettingsGeometryRoundtrip:
@@ -169,9 +283,7 @@ class TestExportButtonIntegration:
 
 
 class TestQSettingsNewFields:
-    def test_saves_and_restores_filter_project_keys(
-        self, qtbot, tmp_path: Path
-    ) -> None:
+    def test_saves_and_restores_filter_project_keys(self, qtbot, tmp_path: Path) -> None:
         settings_file = str(tmp_path / "s.ini")
         s1 = QSettings(settings_file, QSettings.Format.IniFormat)
         w1 = MainWindow(_settings=s1)
@@ -185,9 +297,7 @@ class TestQSettingsNewFields:
         qtbot.addWidget(w2)
         assert w2.filter_widget.project_keys_field.text() == "PROJ"
 
-    def test_saves_and_restores_output_dir(
-        self, qtbot, tmp_path: Path
-    ) -> None:
+    def test_saves_and_restores_output_dir(self, qtbot, tmp_path: Path) -> None:
         settings_file = str(tmp_path / "s.ini")
         target_dir = str(tmp_path)
         s1 = QSettings(settings_file, QSettings.Format.IniFormat)
@@ -211,16 +321,12 @@ class TestQSettingsNewFields:
 class TestCloseEventTeardown:
     """closeEvent must quit and join the export thread before returning."""
 
-    def test_export_thread_stopped_after_close(
-        self, qtbot, isolated_settings: QSettings
-    ) -> None:
+    def test_export_thread_stopped_after_close(self, qtbot, isolated_settings: QSettings) -> None:
         mock_svc = MagicMock()
         mock_svc.load_token.return_value = None
         w = MainWindow(_settings=isolated_settings, service=mock_svc)
         qtbot.addWidget(w)
 
-        # Start the thread directly -- same path _on_export_clicked takes on
-        # first export.  Thread idles in its event loop; no slot is invoked.
         w._export_thread.start()
         assert w._export_thread.isRunning(), "thread must be running before close"
 
@@ -244,22 +350,16 @@ _SA_CONFIG = ExportConfig(
 
 class TestConnectionVerifiedWiring:
     # MW-4: before any connection_verified, _search_fn on the worker is None
-    def test_search_fn_is_none_before_connection_verified(
-        self, main_window: MainWindow
-    ) -> None:
+    def test_search_fn_is_none_before_connection_verified(self, main_window: MainWindow) -> None:
         assert main_window.user_search_widget._search_worker._search_fn is None
 
     # MW-1: after connection_verified signal, _search_fn is set on the worker
-    def test_search_fn_set_after_connection_verified(
-        self, main_window: MainWindow
-    ) -> None:
+    def test_search_fn_set_after_connection_verified(self, main_window: MainWindow) -> None:
         main_window.auth_widget.connection_verified.emit(_SA_CONFIG)
         assert main_window.user_search_widget._search_worker._search_fn is not None
 
     # MW-2: after connection_invalidated, _search_fn on the worker is None again
-    def test_search_fn_cleared_after_connection_invalidated(
-        self, main_window: MainWindow
-    ) -> None:
+    def test_search_fn_cleared_after_connection_invalidated(self, main_window: MainWindow) -> None:
         main_window.auth_widget.connection_verified.emit(_SA_CONFIG)
         main_window.auth_widget.connection_invalidated.emit()
         assert main_window.user_search_widget._search_worker._search_fn is None

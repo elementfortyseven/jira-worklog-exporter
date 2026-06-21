@@ -171,3 +171,71 @@ QLabel {
 QSplitter::handle {
     background: %(line.hairline)s;
 }
+
+/* ---- Frameless window shell ---- */
+QFrame#windowFrame {
+    background: %(bg.window)s;
+    border: 1px solid %(line.hairline)s;
+    border-radius: %(radius.window)s;
+}
+QFrame#windowFrame[maximized="true"] {
+    border-radius: 0;
+    border: none;
+}
+
+/* ---- Title bar ---- */
+QFrame#titleBar {
+    background: transparent;
+    border-bottom: 1px solid %(line.hairline)s;
+    min-height: 44px;
+    max-height: 44px;
+}
+QLabel#titleBarBrand {
+    background: transparent;
+    color: %(text.primary)s;
+    font-family: %(font.mono)s;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* DE/EN language toggle */
+QPushButton#titleLangBtn {
+    background: transparent;
+    border: 1px solid %(line.hairline)s;
+    border-radius: %(radius.control)s;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    color: %(text.tertiary)s;
+    min-width: 28px;
+}
+QPushButton#titleLangBtn[active="true"] {
+    background: %(accent.base)s;
+    color: %(accent.ink)s;
+    border-color: %(accent.base)s;
+}
+
+/* Window control buttons */
+QPushButton#winMin,
+QPushButton#winMax,
+QPushButton#winClose {
+    background: transparent;
+    border: none;
+    color: %(text.secondary)s;
+    padding: 0px;
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+    border-radius: %(radius.control)s;
+    font-size: 14px;
+}
+QPushButton#winMin:hover,
+QPushButton#winMax:hover {
+    background: rgba(126,166,206,0.1);
+    color: %(text.primary)s;
+}
+QPushButton#winClose:hover {
+    background: %(status.err)s;
+    color: #FFFFFF;
+}

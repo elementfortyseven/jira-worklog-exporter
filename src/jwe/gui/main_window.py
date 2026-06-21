@@ -8,13 +8,18 @@ from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QByteArray, QSettings, Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QCloseEvent, QDesktopServices
+from PySide6.QtCore import QByteArray, QPoint, QSettings, Qt, QThread, QUrl, Signal
+from PySide6.QtGui import (
+    QCloseEvent,
+    QColor,
+    QDesktopServices,
+    QMouseEvent,
+)
 from PySide6.QtWidgets import (
-    QHBoxLayout,
+    QFrame,
+    QGraphicsDropShadowEffect,
     QMainWindow,
     QMessageBox,
-    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -22,10 +27,12 @@ from PySide6.QtWidgets import (
 
 import jwe.service as _default_svc
 from jwe.config import ColumnProfile, ExportConfig
+from jwe.gui.theme.tokens import WINDOW_SHADOW
 from jwe.gui.widgets.auth import AuthWidget
 from jwe.gui.widgets.filter import FilterWidget
 from jwe.gui.widgets.output import OutputWidget
 from jwe.gui.widgets.status import StatusWidget
+from jwe.gui.widgets.title_bar import TitleBar
 from jwe.gui.widgets.user_search import UserSearchWidget
 from jwe.gui.workers.export_worker import ExportWorker
 from jwe.i18n import diag, t
@@ -34,6 +41,8 @@ logger = logging.getLogger(__name__)
 
 _SETTINGS_ORG = "jira-worklog-exporter"
 _SETTINGS_APP = "jwe-gui"
+_SHADOW_MARGIN = 32
+_RESIZE_MARGIN = 6
 
 
 class MainWindow(QMainWindow):
@@ -50,38 +59,25 @@ class MainWindow(QMainWindow):
         service: Any = None,
     ) -> None:
         super().__init__()
-        self._settings: QSettings = (
-            _settings or QSettings(_SETTINGS_ORG, _SETTINGS_APP)
-        )
+        self._settings: QSettings = _settings or QSettings(_SETTINGS_ORG, _SETTINGS_APP)
         self._lang: str = "de"
         self._svc: Any = service if service is not None else _default_svc
         self._cancel_event: threading.Event | None = None
         self._export_active: bool = False
         self._last_output_path: str | None = None
+        self._maximized: bool = False
+        self._pre_max_geometry: QByteArray | None = None
+        self._shadow_effect: QGraphicsDropShadowEffect | None = None
 
         self.auth_widget = AuthWidget(service=self._svc)
         self.user_search_widget = UserSearchWidget()
         self.filter_widget = FilterWidget()
         self.output_widget = OutputWidget()
         self.status_widget = StatusWidget()
+        self.title_bar = TitleBar()
 
-        # Created here so mypy can see the type; placed in layout by _build_ui.
-        self.lang_btn = QPushButton()
-        self.lang_btn.setFlat(True)
-        self.lang_btn.clicked.connect(self._toggle_language)
-
-        # Persistent export worker and thread.  The thread is started lazily on
-        # the first export, not here.  Pattern C guarantees the thread lives from
-        # first export until closeEvent -- lazy start only delays the beginning of
-        # that lifetime, not its end.  Tests that never trigger an export get no
-        # running thread, which avoids __del__-time hangs when MainWindow is held
-        # in a local variable (no closeEvent fires, so Python GC would destroy the
-        # QThread while still running).
         self._export_worker = ExportWorker(self._svc.run_export)
         self._export_thread = QThread()
-        # moveToThread before signal wiring: AutoConnection evaluates thread
-        # affinity at emit time, so the worker must already live on its thread
-        # before any signal is connected.
         self._export_worker.moveToThread(self._export_thread)
         self._start_export_requested.connect(self._export_worker.start_export)
         self._export_worker.progress_updated.connect(self.status_widget.on_progress_updated)
@@ -105,25 +101,46 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(800, 600)
         self.resize(960, 720)
 
+        # Frameless + transparent so the drop shadow renders into the margin.
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
         central = QWidget()
         self.setCentralWidget(central)
-        root = QVBoxLayout(central)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
+        central.setMouseTracking(True)
+        self.setMouseTracking(True)
 
-        # Header: language toggle button aligned right
-        header = QWidget()
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(8, 4, 8, 4)
-        header_layout.addStretch()
-        header_layout.addWidget(self.lang_btn)
-        root.addWidget(header)
+        outer_layout = QVBoxLayout(central)
+        outer_layout.setContentsMargins(
+            _SHADOW_MARGIN, _SHADOW_MARGIN, _SHADOW_MARGIN, _SHADOW_MARGIN
+        )
+        outer_layout.setSpacing(0)
 
-        # Scroll area containing the four input sections
+        # Visible window frame — background, border, border-radius.
+        self._window_frame = QFrame()
+        self._window_frame.setObjectName("windowFrame")
+        self._window_frame.setProperty("maximized", False)
+        outer_layout.addWidget(self._window_frame)
+
+        # Drop shadow on the frame.
+        shadow = QGraphicsDropShadowEffect(self._window_frame)
+        color_rgba = cast(tuple[int, int, int, int], WINDOW_SHADOW["color_rgba"])
+        shadow.setColor(QColor(*color_rgba))
+        shadow.setBlurRadius(cast(int, WINDOW_SHADOW["blur_radius"]))
+        shadow.setXOffset(cast(int, WINDOW_SHADOW["x_offset"]))
+        shadow.setYOffset(cast(int, WINDOW_SHADOW["y_offset"]))
+        self._window_frame.setGraphicsEffect(shadow)
+        self._shadow_effect = shadow
+
+        frame_layout = QVBoxLayout(self._window_frame)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame_layout.setSpacing(0)
+
+        frame_layout.addWidget(self.title_bar)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(8, 8, 8, 8)
@@ -134,23 +151,24 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self.output_widget)
         content_layout.addStretch()
         scroll.setWidget(content)
-        root.addWidget(scroll, 1)
+        frame_layout.addWidget(scroll, 1)
+        frame_layout.addWidget(self.status_widget)
 
-        # Status panel anchored at the bottom (outside the scroll area)
-        root.addWidget(self.status_widget)
+        # Title bar signals.
+        self.title_bar.language_selected.connect(self._on_language_selected)
+        self.title_bar.minimize_requested.connect(self.showMinimized)
+        self.title_bar.maximize_requested.connect(self._toggle_max_restore)
+        self.title_bar.close_requested.connect(self.close)
 
-        # Validation wiring: any widget going valid/invalid refreshes the export button.
+        # Validation wiring.
         self.auth_widget.validation_changed.connect(self._update_export_btn)
         self.user_search_widget.selection_changed.connect(self._update_export_btn)
         self.filter_widget.validation_changed.connect(self._update_export_btn)
         self.output_widget.validation_changed.connect(self._update_export_btn)
 
-        # Connection-verify wiring: successful test enables user search;
-        # any subsequent auth-field change clears it again.
         self.auth_widget.connection_verified.connect(self._on_connection_verified)
         self.auth_widget.connection_invalidated.connect(self._on_connection_invalidated)
 
-        # Result buttons and cancel button wiring.
         self.status_widget.open_csv_btn.clicked.connect(self._on_open_csv_clicked)
         self.status_widget.open_folder_btn.clicked.connect(self._on_open_folder_clicked)
         self.status_widget.cancel_requested.connect(self._on_cancel_clicked)
@@ -162,7 +180,7 @@ class MainWindow(QMainWindow):
     def _restore_settings(self, initial_lang: str | None) -> None:
         saved_lang = cast(str, self._settings.value("lang", "de"))
         self._lang = initial_lang if initial_lang is not None else saved_lang
-        self.lang_btn.setText(self._target_flag())
+        self.title_bar.set_active_lang(self._lang)
         geo_raw = self._settings.value("geometry", QByteArray())
         if isinstance(geo_raw, QByteArray) and not geo_raw.isEmpty():
             self.restoreGeometry(geo_raw)
@@ -186,7 +204,11 @@ class MainWindow(QMainWindow):
                     "Export thread did not stop within timeout: %r",
                     self._export_thread,
                 )
-        self._settings.setValue("geometry", self.saveGeometry())
+        # Save the non-maximized geometry so a restore doesn't start maximized.
+        if self._maximized and self._pre_max_geometry is not None:
+            self._settings.setValue("geometry", self._pre_max_geometry)
+        else:
+            self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("lang", self._lang)
         self.auth_widget.save_settings(self._settings)
         self.filter_widget.save_settings(self._settings)
@@ -194,11 +216,100 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     # ------------------------------------------------------------------
+    # Maximize / restore
+    # ------------------------------------------------------------------
+
+    def _toggle_max_restore(self) -> None:
+        outer_layout = cast(QVBoxLayout, self.centralWidget().layout())
+        if self._maximized:
+            self._maximized = False
+            if self._shadow_effect is not None:
+                self._shadow_effect.setEnabled(True)
+            self._window_frame.setProperty("maximized", False)
+            self._window_frame.style().unpolish(self._window_frame)
+            self._window_frame.style().polish(self._window_frame)
+            outer_layout.setContentsMargins(
+                _SHADOW_MARGIN, _SHADOW_MARGIN, _SHADOW_MARGIN, _SHADOW_MARGIN
+            )
+            if self._pre_max_geometry is not None:
+                self.restoreGeometry(self._pre_max_geometry)
+        else:
+            self._pre_max_geometry = self.saveGeometry()
+            self._maximized = True
+            if self._shadow_effect is not None:
+                self._shadow_effect.setEnabled(False)
+            self._window_frame.setProperty("maximized", True)
+            self._window_frame.style().unpolish(self._window_frame)
+            self._window_frame.style().polish(self._window_frame)
+            outer_layout.setContentsMargins(0, 0, 0, 0)
+            screen = self.screen()
+            if screen is not None:
+                self.setGeometry(screen.availableGeometry())
+
+    # ------------------------------------------------------------------
+    # Edge resize via startSystemResize
+    # ------------------------------------------------------------------
+
+    def _edge_at_pos(self, pos: QPoint) -> Qt.Edge | None:
+        central = self.centralWidget()
+        if central is None:
+            return None
+        pos_c = central.mapFrom(self, pos)
+        fr = self._window_frame.geometry()
+        m = _RESIZE_MARGIN
+
+        edges: Qt.Edge = Qt.Edge(0)
+        if fr.left() <= pos_c.x() <= fr.left() + m:
+            edges |= Qt.Edge.LeftEdge
+        elif fr.right() - m <= pos_c.x() <= fr.right():
+            edges |= Qt.Edge.RightEdge
+        if fr.top() <= pos_c.y() <= fr.top() + m:
+            edges |= Qt.Edge.TopEdge
+        elif fr.bottom() - m <= pos_c.y() <= fr.bottom():
+            edges |= Qt.Edge.BottomEdge
+
+        return edges if edges else None
+
+    def _set_resize_cursor(self, edges: Qt.Edge) -> None:
+        top = bool(edges & Qt.Edge.TopEdge)
+        bottom = bool(edges & Qt.Edge.BottomEdge)
+        left = bool(edges & Qt.Edge.LeftEdge)
+        right = bool(edges & Qt.Edge.RightEdge)
+
+        if (top and left) or (bottom and right):
+            self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+        elif (top and right) or (bottom and left):
+            self.setCursor(Qt.CursorShape.SizeBDiagCursor)
+        elif left or right:
+            self.setCursor(Qt.CursorShape.SizeHorCursor)
+        else:
+            self.setCursor(Qt.CursorShape.SizeVerCursor)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if not self._maximized:
+            edges = self._edge_at_pos(event.position().toPoint())
+            if edges:
+                self._set_resize_cursor(edges)
+            else:
+                self.unsetCursor()
+        super().mouseMoveEvent(event)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and not self._maximized:
+            edges = self._edge_at_pos(event.position().toPoint())
+            if edges:
+                handle = self.windowHandle()
+                if handle is not None:
+                    handle.startSystemResize(edges)
+                    return
+        super().mousePressEvent(event)
+
+    # ------------------------------------------------------------------
     # Export lifecycle
     # ------------------------------------------------------------------
 
     def _on_export_clicked(self) -> None:
-        self.status_widget.stop_progress_display()  # reset any previous run
+        self.status_widget.stop_progress_display()
         config = self._build_config()
         self._cancel_event = threading.Event()
         self._export_active = True
@@ -271,20 +382,15 @@ class MainWindow(QMainWindow):
 
     def _on_open_folder_clicked(self) -> None:
         if self._last_output_path:
-            QDesktopServices.openUrl(
-                QUrl.fromLocalFile(str(Path(self._last_output_path).parent))
-            )
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(self._last_output_path).parent)))
 
     # ------------------------------------------------------------------
     # Connection-verify handlers
     # ------------------------------------------------------------------
 
     def _on_connection_verified(self, config: object) -> None:
-        # assert is defensive; PySide6 Signal(object) idiom requires runtime type guard
         assert isinstance(config, ExportConfig)
-        self.user_search_widget.set_search_fn(
-            lambda query: self._svc.search_users(config, query)
-        )
+        self.user_search_widget.set_search_fn(lambda query: self._svc.search_users(config, query))
 
     def _on_connection_invalidated(self) -> None:
         self.user_search_widget.set_search_fn(None)
@@ -307,24 +413,22 @@ class MainWindow(QMainWindow):
             self.status_widget.set_status_text(t("status.label.not_ready", self._lang))
 
     # ------------------------------------------------------------------
-    # Language toggle
+    # Language selection
     # ------------------------------------------------------------------
 
-    def _target_flag(self) -> str:
-        """Return the flag emoji for the language we would switch to."""
-        return "🇬🇧" if self._lang == "de" else "🇩🇪"
-
-    def _toggle_language(self) -> None:
-        self._lang = "en" if self._lang == "de" else "de"
-        self.lang_btn.setText(self._target_flag())
-        self.language_changed.emit(self._lang)
-        self._retranslate_all(self._lang)
+    def _on_language_selected(self, lang: str) -> None:
+        if lang == self._lang:
+            return
+        self._lang = lang
+        self.language_changed.emit(lang)
+        self._retranslate_all(lang)
 
     def _retranslate_all(self, lang: str) -> None:
         self.setWindowTitle(t("app.title", lang))
+        self.title_bar.retranslate_ui(lang)
         self.auth_widget.retranslate_ui(lang)
         self.user_search_widget.retranslate_ui(lang)
         self.filter_widget.retranslate_ui(lang)
         self.output_widget.retranslate_ui(lang)
         self.status_widget.retranslate_ui(lang)
-        self._update_export_btn()  # retranslates the status label for current ready/not_ready state
+        self._update_export_btn()

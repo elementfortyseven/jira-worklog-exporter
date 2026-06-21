@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QSettings
 
 from jwe.gui.main_window import MainWindow
 from jwe.i18n import diag, t
@@ -30,7 +30,7 @@ class TestRuntimeLanguageSwitch:
         counter_de = main_window.status_widget.issue_label.text()
         placeholder_de = main_window.user_search_widget.search_field.placeholderText()
 
-        qtbot.mouseClick(main_window.lang_btn, Qt.MouseButton.LeftButton)
+        main_window.title_bar.en_btn.click()
         assert main_window._lang == "en"
 
         assert main_window.auth_widget.title() == t("section.auth.title", "en")
@@ -55,7 +55,7 @@ class TestRuntimeLanguageSwitch:
         assert main_window._lang == "de"
         diag_before = diag("status.log.cancelled")
 
-        qtbot.mouseClick(main_window.lang_btn, Qt.MouseButton.LeftButton)
+        main_window.title_bar.en_btn.click()
         assert main_window._lang == "en"
         diag_after = diag("status.log.cancelled")
 
@@ -78,7 +78,7 @@ class TestLanguagePersistence:
         assert w1._lang == "de"
 
         # Toggle to English.
-        qtbot.mouseClick(w1.lang_btn, Qt.MouseButton.LeftButton)
+        w1.title_bar.en_btn.click()
         assert w1._lang == "en"
 
         # closeEvent calls _save_settings, which writes lang = "en".
