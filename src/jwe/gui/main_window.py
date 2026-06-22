@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 _SETTINGS_ORG = "jira-worklog-exporter"
 _SETTINGS_APP = "jwe-gui"
-_SHADOW_MARGIN = 32
+_SHADOW_MARGIN = 10
 _RESIZE_MARGIN = 6
 
 
@@ -251,21 +251,21 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _edge_at_pos(self, pos: QPoint) -> Qt.Edge | None:
-        central = self.centralWidget()
-        if central is None:
-            return None
-        pos_c = central.mapFrom(self, pos)
-        fr = self._window_frame.geometry()
+        # Detect edges against the window outer rect. The transparent margin
+        # (width _SHADOW_MARGIN) has no interactive children, so mouse events
+        # reach MainWindow there. _RESIZE_MARGIN < _SHADOW_MARGIN keeps the
+        # band entirely outside #windowFrame content.
+        r = self.rect()
         m = _RESIZE_MARGIN
 
         edges: Qt.Edge = Qt.Edge(0)
-        if fr.left() <= pos_c.x() <= fr.left() + m:
+        if pos.x() <= r.left() + m:
             edges |= Qt.Edge.LeftEdge
-        elif fr.right() - m <= pos_c.x() <= fr.right():
+        elif pos.x() >= r.right() - m:
             edges |= Qt.Edge.RightEdge
-        if fr.top() <= pos_c.y() <= fr.top() + m:
+        if pos.y() <= r.top() + m:
             edges |= Qt.Edge.TopEdge
-        elif fr.bottom() - m <= pos_c.y() <= fr.bottom():
+        elif pos.y() >= r.bottom() - m:
             edges |= Qt.Edge.BottomEdge
 
         return edges if edges else None

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtCore import QByteArray, QDate, QSettings, QSize, Qt
+from PySide6.QtCore import QByteArray, QDate, QPoint, QSettings, QSize, Qt
 from PySide6.QtWidgets import QListWidgetItem
 
 from jwe.api.user import User
@@ -76,9 +76,7 @@ class TestFramelessShell:
     def test_title_bar_has_win_close_btn(self, main_window: MainWindow) -> None:
         assert main_window.title_bar.win_close_btn is not None
 
-    def test_win_min_btn_emits_minimize_requested(
-        self, qtbot, main_window: MainWindow
-    ) -> None:
+    def test_win_min_btn_emits_minimize_requested(self, qtbot, main_window: MainWindow) -> None:
         with qtbot.waitSignal(main_window.title_bar.minimize_requested, timeout=1000):
             main_window.title_bar.win_min_btn.click()
 
@@ -89,9 +87,7 @@ class TestFramelessShell:
         main_window._toggle_max_restore()
         assert not main_window._maximized
 
-    def test_win_close_btn_emits_close_requested(
-        self, main_window: MainWindow
-    ) -> None:
+    def test_win_close_btn_emits_close_requested(self, main_window: MainWindow) -> None:
         received: list[bool] = []
         # Disconnect from close() so the fixture window is not closed mid-test.
         main_window.title_bar.close_requested.disconnect(main_window.close)
@@ -380,3 +376,64 @@ class TestConnectionVerifiedWiring:
         fn("alice")
 
         mock_svc.search_users.assert_called_once_with(_SA_CONFIG, "alice")
+
+
+# ---------------------------------------------------------------------------
+# JWE-49: _edge_at_pos geometry (offscreen-safe, pure geometry test)
+# ---------------------------------------------------------------------------
+
+
+class TestEdgeAtPos:
+    """_edge_at_pos detects edges and corners against the window outer rect."""
+
+    def test_left_edge_mid(self, main_window: MainWindow) -> None:
+        r = main_window.rect()
+        edges = main_window._edge_at_pos(QPoint(2, r.height() // 2))
+        assert edges == Qt.Edge.LeftEdge
+
+    def test_right_edge_mid(self, main_window: MainWindow) -> None:
+        r = main_window.rect()
+        edges = main_window._edge_at_pos(QPoint(r.right() - 2, r.height() // 2))
+        assert edges == Qt.Edge.RightEdge
+
+    def test_top_edge_mid(self, main_window: MainWindow) -> None:
+        r = main_window.rect()
+        edges = main_window._edge_at_pos(QPoint(r.width() // 2, 2))
+        assert edges == Qt.Edge.TopEdge
+
+    def test_bottom_edge_mid(self, main_window: MainWindow) -> None:
+        r = main_window.rect()
+        edges = main_window._edge_at_pos(QPoint(r.width() // 2, r.bottom() - 2))
+        assert edges == Qt.Edge.BottomEdge
+
+    def test_top_left_corner(self, main_window: MainWindow) -> None:
+        edges = main_window._edge_at_pos(QPoint(2, 2))
+        assert edges is not None
+        assert bool(edges & Qt.Edge.TopEdge)
+        assert bool(edges & Qt.Edge.LeftEdge)
+
+    def test_top_right_corner(self, main_window: MainWindow) -> None:
+        r = main_window.rect()
+        edges = main_window._edge_at_pos(QPoint(r.right() - 2, 2))
+        assert edges is not None
+        assert bool(edges & Qt.Edge.TopEdge)
+        assert bool(edges & Qt.Edge.RightEdge)
+
+    def test_bottom_left_corner(self, main_window: MainWindow) -> None:
+        r = main_window.rect()
+        edges = main_window._edge_at_pos(QPoint(2, r.bottom() - 2))
+        assert edges is not None
+        assert bool(edges & Qt.Edge.BottomEdge)
+        assert bool(edges & Qt.Edge.LeftEdge)
+
+    def test_bottom_right_corner(self, main_window: MainWindow) -> None:
+        r = main_window.rect()
+        edges = main_window._edge_at_pos(QPoint(r.right() - 2, r.bottom() - 2))
+        assert edges is not None
+        assert bool(edges & Qt.Edge.BottomEdge)
+        assert bool(edges & Qt.Edge.RightEdge)
+
+    def test_interior_returns_none(self, main_window: MainWindow) -> None:
+        r = main_window.rect()
+        edges = main_window._edge_at_pos(QPoint(r.width() // 2, r.height() // 2))
+        assert edges is None

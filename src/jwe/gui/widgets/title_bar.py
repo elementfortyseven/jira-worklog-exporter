@@ -97,15 +97,14 @@ class TitleBar(QFrame):
     # ------------------------------------------------------------------
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        if (
-            event.button() == Qt.MouseButton.LeftButton
-            and self.childAt(event.position().toPoint()) is None
-        ):
-            win = self.window()
-            handle = win.windowHandle() if win is not None else None
-            if handle is not None:
-                handle.startSystemMove()
-                return
+        if event.button() == Qt.MouseButton.LeftButton:
+            child = self.childAt(event.position().toPoint())
+            if child is None or not isinstance(child, QPushButton):
+                win = self.window()
+                handle = win.windowHandle() if win is not None else None
+                if handle is not None:
+                    handle.startSystemMove()
+                    return
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
