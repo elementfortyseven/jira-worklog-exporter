@@ -1,16 +1,30 @@
-"""Tests for MainWindow -- Stages 1, 4, connection-verify wiring, and JWE-34 shell."""
+"""Tests for MainWindow -- Stages 1, 4, connection-verify wiring, JWE-34 shell, JWE-50 native chrome."""
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtCore import QByteArray, QDate, QPoint, QSettings, QSize, Qt
+import pytest
+from PySide6.QtCore import QByteArray, QDate, QPoint, QRect, QSettings, QSize, Qt
 from PySide6.QtWidgets import QListWidgetItem
 
 from jwe.api.user import User
 from jwe.config import ExportConfig
-from jwe.gui.main_window import MainWindow
+from jwe.gui.main_window import (
+    _HTBOTTOM,
+    _HTBOTTOMLEFT,
+    _HTBOTTOMRIGHT,
+    _HTCAPTION,
+    _HTCLIENT,
+    _HTLEFT,
+    _HTRIGHT,
+    _HTTOP,
+    _HTTOPLEFT,
+    _HTTOPRIGHT,
+    MainWindow,
+)
 
 _FAKE_USER = User(account_id="acc-1", display_name="Test", email="t@t.com", active=True)
 
@@ -42,9 +56,15 @@ class TestMainWindowInstantiates:
 class TestFramelessShell:
     """Frameless window flags and structural assertions."""
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Native DWM model on Windows: no FramelessWindowHint"
+    )
     def test_frameless_hint_set(self, main_window: MainWindow) -> None:
         assert main_window.windowFlags() & Qt.WindowType.FramelessWindowHint
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Native DWM model on Windows: no WA_TranslucentBackground"
+    )
     def test_translucent_background_set(self, main_window: MainWindow) -> None:
         assert main_window.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
@@ -95,21 +115,43 @@ class TestFramelessShell:
         main_window.title_bar.win_close_btn.click()
         assert received == [True]
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Native DWM model on Windows: no pre_max_geometry"
+    )
     def test_maximize_saves_pre_max_geometry(self, main_window: MainWindow) -> None:
         assert main_window._pre_max_geometry is None
         main_window._toggle_max_restore()
         assert main_window._pre_max_geometry is not None
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Native DWM model on Windows: no Qt drop shadow"
+    )
     def test_maximize_disables_shadow_effect(self, main_window: MainWindow) -> None:
         assert main_window._shadow_effect is not None
         main_window._toggle_max_restore()
         assert not main_window._shadow_effect.isEnabled()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Native DWM model on Windows: no Qt drop shadow"
+    )
     def test_restore_re_enables_shadow_effect(self, main_window: MainWindow) -> None:
         main_window._toggle_max_restore()
         main_window._toggle_max_restore()
         assert main_window._shadow_effect is not None
         assert main_window._shadow_effect.isEnabled()
+
+    # Windows-specific: native DWM model assertions
+    @pytest.mark.skipif(sys.platform != "win32", reason="Native DWM path is Win32 only")
+    def test_no_frameless_hint_on_win32(self, main_window: MainWindow) -> None:
+        assert not (main_window.windowFlags() & Qt.WindowType.FramelessWindowHint)
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Native DWM path is Win32 only")
+    def test_no_translucent_background_on_win32(self, main_window: MainWindow) -> None:
+        assert not main_window.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Native DWM path is Win32 only")
+    def test_no_shadow_effect_on_win32(self, main_window: MainWindow) -> None:
+        assert main_window._shadow_effect is None
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +418,121 @@ class TestConnectionVerifiedWiring:
         fn("alice")
 
         mock_svc.search_users.assert_called_once_with(_SA_CONFIG, "alice")
+
+
+# ---------------------------------------------------------------------------
+# JWE-50: TitleBar.set_maximized icon toggle
+# ---------------------------------------------------------------------------
+
+
+class TestTitleBarSetMaximized:
+    """set_maximized swaps win_max_btn between the maximize and restore icons."""
+
+    def test_initial_state_is_not_maximized(self, main_window: MainWindow) -> None:
+        # Control buttons carry icons, not text glyphs.
+        assert main_window.title_bar._is_maximized is False
+        assert main_window.title_bar.win_max_btn.text() == ""
+
+    def test_set_maximized_true_sets_is_maximized(self, main_window: MainWindow) -> None:
+        main_window.title_bar.set_maximized(True)
+        assert main_window.title_bar._is_maximized is True
+
+    def test_set_maximized_false_clears_is_maximized(self, main_window: MainWindow) -> None:
+        main_window.title_bar.set_maximized(True)
+        main_window.title_bar.set_maximized(False)
+        assert main_window.title_bar._is_maximized is False
+
+    def test_toggle_max_restore_updates_icon_state_on_win32(self, main_window: MainWindow) -> None:
+        if sys.platform != "win32":
+            pytest.skip("Native maximize icon toggle is Win32 only")
+        main_window._toggle_max_restore()
+        assert main_window.title_bar._is_maximized is True
+        main_window._toggle_max_restore()
+        assert main_window.title_bar._is_maximized is False
+
+
+# ---------------------------------------------------------------------------
+# JWE-50: _nc_hit_region pure geometry (offscreen-safe, no Qt widget needed)
+# ---------------------------------------------------------------------------
+
+_WIN_W = 800
+_WIN_H = 600
+_TB_H = 44
+_GRAB = 8
+
+# Three simulated title-bar buttons (DE/EN/close) near the top-right.
+# Kept below x=792 so they don't overlap the right-edge resize zone (_GRAB=8).
+_BTN_RECTS = [
+    QRect(720, 0, 20, _TB_H),
+    QRect(740, 0, 20, _TB_H),
+    QRect(760, 0, 20, _TB_H),
+]
+_WIN_SIZE = QSize(_WIN_W, _WIN_H)
+_TB_RECT = QRect(0, 0, _WIN_W, _TB_H)
+
+
+class TestNcHitRegion:
+    """_nc_hit_region maps client-local points to WM_NCHITTEST codes (pure geometry)."""
+
+    def _hit(self, x: int, y: int) -> int:
+        return MainWindow._nc_hit_region(QPoint(x, y), _WIN_SIZE, _TB_RECT, _BTN_RECTS, _GRAB)
+
+    def test_left_edge(self) -> None:
+        assert self._hit(4, _WIN_H // 2) == _HTLEFT
+
+    def test_right_edge(self) -> None:
+        assert self._hit(_WIN_W - 4, _WIN_H // 2) == _HTRIGHT
+
+    def test_top_edge(self) -> None:
+        assert self._hit(_WIN_W // 2, 4) == _HTTOP
+
+    def test_bottom_edge(self) -> None:
+        assert self._hit(_WIN_W // 2, _WIN_H - 4) == _HTBOTTOM
+
+    def test_top_left_corner(self) -> None:
+        assert self._hit(4, 4) == _HTTOPLEFT
+
+    def test_top_right_corner(self) -> None:
+        assert self._hit(_WIN_W - 4, 4) == _HTTOPRIGHT
+
+    def test_bottom_left_corner(self) -> None:
+        assert self._hit(4, _WIN_H - 4) == _HTBOTTOMLEFT
+
+    def test_bottom_right_corner(self) -> None:
+        assert self._hit(_WIN_W - 4, _WIN_H - 4) == _HTBOTTOMRIGHT
+
+    def test_caption_center(self) -> None:
+        # Center of title bar, clear of buttons and all edges
+        assert self._hit(200, _TB_H // 2) == _HTCAPTION
+
+    def test_button_area_returns_htclient(self) -> None:
+        # Inside last button rect (QRect(760, 0, 20, 44)) → HTCLIENT
+        assert self._hit(770, 22) == _HTCLIENT
+
+    def test_interior_below_titlebar_returns_htclient(self) -> None:
+        assert self._hit(_WIN_W // 2, _WIN_H // 2) == _HTCLIENT
+
+    def test_top_edge_overrides_caption(self) -> None:
+        # Within title-bar height AND within top grab zone → edge wins
+        assert self._hit(200, 4) == _HTTOP
+
+    def test_button_overrides_edge(self) -> None:
+        # Button at top-left corner — button check runs before edge check
+        near_edge_btn = [QRect(0, 0, 20, 20)]
+        result = MainWindow._nc_hit_region(QPoint(5, 5), _WIN_SIZE, _TB_RECT, near_edge_btn, _GRAB)
+        assert result == _HTCLIENT
+
+    def test_not_in_any_button_not_in_edge_not_in_caption_returns_htclient(self) -> None:
+        # Below title bar, no edges → HTCLIENT
+        assert self._hit(400, 200) == _HTCLIENT
+
+    def test_right_edge_boundary_exact(self) -> None:
+        # x == _WIN_W - _GRAB is the first pixel in the right zone
+        assert self._hit(_WIN_W - _GRAB, _WIN_H // 2) == _HTRIGHT
+
+    def test_just_inside_right_edge_boundary(self) -> None:
+        # x == _WIN_W - _GRAB - 1 is just outside the right zone (interior)
+        assert self._hit(_WIN_W - _GRAB - 1, _WIN_H // 2) == _HTCLIENT
 
 
 # ---------------------------------------------------------------------------

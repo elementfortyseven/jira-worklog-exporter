@@ -175,7 +175,7 @@ QSplitter::handle {
 /* ---- Frameless window shell ---- */
 QFrame#windowFrame {
     background: %(bg.window)s;
-    border: 1px solid %(line.hairline)s;
+    border: 2px solid %(line.hairline)s;
     border-radius: %(radius.window)s;
 }
 QFrame#windowFrame[maximized="true"] {

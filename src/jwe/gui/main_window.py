@@ -2,13 +2,27 @@
 
 from __future__ import annotations
 
+import ctypes
 import logging
+import sys
 import threading
+from ctypes import wintypes as _ct_wt
 from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import QByteArray, QPoint, QSettings, Qt, QThread, QUrl, Signal
+from PySide6.QtCore import (
+    QByteArray,
+    QEvent,
+    QPoint,
+    QRect,
+    QSettings,
+    QSize,
+    Qt,
+    QThread,
+    QUrl,
+    Signal,
+)
 from PySide6.QtGui import (
     QCloseEvent,
     QColor,
@@ -43,6 +57,61 @@ _SETTINGS_ORG = "jira-worklog-exporter"
 _SETTINGS_APP = "jwe-gui"
 _SHADOW_MARGIN = 10
 _RESIZE_MARGIN = 6
+
+# ---------------------------------------------------------------------------
+# Win32 constants (plain integers; usable on every platform for unit tests)
+# ---------------------------------------------------------------------------
+_WM_NCCALCSIZE = 0x0083
+_WM_NCHITTEST = 0x0084
+_HTCLIENT = 1
+_HTCAPTION = 2
+_HTLEFT = 10
+_HTRIGHT = 11
+_HTTOP = 12
+_HTTOPLEFT = 13
+_HTTOPRIGHT = 14
+_HTBOTTOM = 15
+_HTBOTTOMLEFT = 16
+_HTBOTTOMRIGHT = 17
+_SM_CXSIZEFRAME = 32
+_SM_CYSIZEFRAME = 33
+_SM_CXPADDEDBORDER = 92
+_DWMWA_WINDOW_CORNER_PREFERENCE = 33
+_DWMWCP_ROUND = 2
+_SW_MAXIMIZE = 3
+_SWP_NOMOVE = 0x0002
+_SWP_NOSIZE = 0x0001
+_SWP_NOZORDER = 0x0004
+_SWP_FRAMECHANGED = 0x0020
+
+
+# ---------------------------------------------------------------------------
+# ctypes structures (ctypes + wintypes are available on all platforms)
+# ---------------------------------------------------------------------------
+
+
+class _NcCalcSizeParams(ctypes.Structure):
+    _fields_ = [("rgrc", _ct_wt.RECT * 3)]
+
+
+class _WindowPlacement(ctypes.Structure):
+    _fields_ = [
+        ("length", ctypes.c_uint),
+        ("flags", ctypes.c_uint),
+        ("showCmd", ctypes.c_uint),
+        ("ptMinPosition", _ct_wt.POINT),
+        ("ptMaxPosition", _ct_wt.POINT),
+        ("rcNormalPosition", _ct_wt.RECT),
+    ]
+
+
+class _Margins(ctypes.Structure):
+    _fields_ = [
+        ("cxLeftWidth", ctypes.c_int),
+        ("cxRightWidth", ctypes.c_int),
+        ("cyTopHeight", ctypes.c_int),
+        ("cyBottomHeight", ctypes.c_int),
+    ]
 
 
 class MainWindow(QMainWindow):
@@ -101,19 +170,25 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(800, 600)
         self.resize(960, 720)
 
-        # Frameless + transparent so the drop shadow renders into the margin.
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        if sys.platform != "win32":
+            # Non-Windows: frameless + translucent so the Qt drop-shadow
+            # renders into the transparent margin.
+            self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         central = QWidget()
         self.setCentralWidget(central)
-        central.setMouseTracking(True)
-        self.setMouseTracking(True)
+        if sys.platform != "win32":
+            central.setMouseTracking(True)
+            self.setMouseTracking(True)
 
         outer_layout = QVBoxLayout(central)
-        outer_layout.setContentsMargins(
-            _SHADOW_MARGIN, _SHADOW_MARGIN, _SHADOW_MARGIN, _SHADOW_MARGIN
-        )
+        if sys.platform == "win32":
+            outer_layout.setContentsMargins(0, 0, 0, 0)
+        else:
+            outer_layout.setContentsMargins(
+                _SHADOW_MARGIN, _SHADOW_MARGIN, _SHADOW_MARGIN, _SHADOW_MARGIN
+            )
         outer_layout.setSpacing(0)
 
         # Visible window frame — background, border, border-radius.
@@ -122,15 +197,16 @@ class MainWindow(QMainWindow):
         self._window_frame.setProperty("maximized", False)
         outer_layout.addWidget(self._window_frame)
 
-        # Drop shadow on the frame.
-        shadow = QGraphicsDropShadowEffect(self._window_frame)
-        color_rgba = cast(tuple[int, int, int, int], WINDOW_SHADOW["color_rgba"])
-        shadow.setColor(QColor(*color_rgba))
-        shadow.setBlurRadius(cast(int, WINDOW_SHADOW["blur_radius"]))
-        shadow.setXOffset(cast(int, WINDOW_SHADOW["x_offset"]))
-        shadow.setYOffset(cast(int, WINDOW_SHADOW["y_offset"]))
-        self._window_frame.setGraphicsEffect(shadow)
-        self._shadow_effect = shadow
+        if sys.platform != "win32":
+            # Qt-managed drop shadow (non-Windows only; Windows uses DWM).
+            shadow = QGraphicsDropShadowEffect(self._window_frame)
+            color_rgba = cast(tuple[int, int, int, int], WINDOW_SHADOW["color_rgba"])
+            shadow.setColor(QColor(*color_rgba))
+            shadow.setBlurRadius(cast(int, WINDOW_SHADOW["blur_radius"]))
+            shadow.setXOffset(cast(int, WINDOW_SHADOW["x_offset"]))
+            shadow.setYOffset(cast(int, WINDOW_SHADOW["y_offset"]))
+            self._window_frame.setGraphicsEffect(shadow)
+            self._shadow_effect = shadow
 
         frame_layout = QVBoxLayout(self._window_frame)
         frame_layout.setContentsMargins(0, 0, 0, 0)
@@ -173,6 +249,43 @@ class MainWindow(QMainWindow):
         self.status_widget.open_folder_btn.clicked.connect(self._on_open_folder_clicked)
         self.status_widget.cancel_requested.connect(self._on_cancel_clicked)
 
+        if sys.platform == "win32":
+            self._setup_dwm()
+
+    # ------------------------------------------------------------------
+    # Windows DWM setup
+    # ------------------------------------------------------------------
+
+    def _setup_dwm(self) -> None:
+        """One-time DWM setup: shadow extension and Win11 rounded corners."""
+        hwnd = int(self.winId())
+        if not hwnd:
+            return
+
+        # Extend the DWM frame into the client area to keep the shadow.
+        margins = _Margins(-1, -1, -1, -1)
+        ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(margins))
+
+        # Request Win11 rounded corners (silently ignored on Win10).
+        corner = ctypes.c_int(_DWMWCP_ROUND)
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            hwnd,
+            _DWMWA_WINDOW_CORNER_PREFERENCE,
+            ctypes.byref(corner),
+            ctypes.sizeof(corner),
+        )
+
+        # Trigger WM_NCCALCSIZE so the non-client area is removed immediately.
+        ctypes.windll.user32.SetWindowPos(
+            hwnd,
+            None,
+            0,
+            0,
+            0,
+            0,
+            _SWP_NOMOVE | _SWP_NOSIZE | _SWP_NOZORDER | _SWP_FRAMECHANGED,
+        )
+
     # ------------------------------------------------------------------
     # Settings persistence
     # ------------------------------------------------------------------
@@ -204,7 +317,9 @@ class MainWindow(QMainWindow):
                     "Export thread did not stop within timeout: %r",
                     self._export_thread,
                 )
-        # Save the non-maximized geometry so a restore doesn't start maximized.
+        # On non-Windows save the pre-maximize geometry so next start is not
+        # maximized. On Windows, saveGeometry() encodes the full state and
+        # restoreGeometry() handles it correctly.
         if self._maximized and self._pre_max_geometry is not None:
             self._settings.setValue("geometry", self._pre_max_geometry)
         else:
@@ -216,10 +331,37 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     # ------------------------------------------------------------------
+    # Window state change (native maximize via snap, double-click caption)
+    # ------------------------------------------------------------------
+
+    def changeEvent(self, event: QEvent) -> None:
+        if sys.platform == "win32" and event.type() == QEvent.Type.WindowStateChange:
+            is_max = self.isMaximized()
+            if is_max != self._maximized:
+                self._maximized = is_max
+                self.title_bar.set_maximized(is_max)
+        super().changeEvent(event)
+
+    # ------------------------------------------------------------------
     # Maximize / restore
     # ------------------------------------------------------------------
 
     def _toggle_max_restore(self) -> None:
+        if sys.platform == "win32":
+            # Use native maximize; _maximized is synced here synchronously so
+            # tests that call this method directly see the updated state without
+            # needing an event loop to deliver changeEvent.
+            if self._maximized:
+                self._maximized = False
+                self.title_bar.set_maximized(False)
+                self.showNormal()
+            else:
+                self._maximized = True
+                self.title_bar.set_maximized(True)
+                self.showMaximized()
+            return
+
+        # Non-Windows: manual geometry management for the frameless path.
         outer_layout = cast(QVBoxLayout, self.centralWidget().layout())
         if self._maximized:
             self._maximized = False
@@ -247,7 +389,7 @@ class MainWindow(QMainWindow):
                 self.setGeometry(screen.availableGeometry())
 
     # ------------------------------------------------------------------
-    # Edge resize via startSystemResize
+    # Edge resize via startSystemResize (non-Windows fallback)
     # ------------------------------------------------------------------
 
     def _edge_at_pos(self, pos: QPoint) -> Qt.Edge | None:
@@ -303,6 +445,143 @@ class MainWindow(QMainWindow):
                     handle.startSystemResize(edges)
                     return
         super().mousePressEvent(event)
+
+    # ------------------------------------------------------------------
+    # Native event handling (Windows only)
+    # ------------------------------------------------------------------
+
+    def nativeEvent(
+        self,
+        eventType: QByteArray | bytes | bytearray | memoryview,  # noqa: N803
+        message: int,
+    ) -> object:
+        if sys.platform != "win32":
+            return super().nativeEvent(eventType, message)
+
+        msg = _ct_wt.MSG.from_address(int(message))
+        hwnd = msg.hWnd
+        if not hwnd:
+            return super().nativeEvent(eventType, message)
+
+        if msg.message == _WM_NCCALCSIZE and msg.wParam:
+            # Zero the non-client area so the client fills the window rect.
+            # When maximized, inset by the resize border so content stays
+            # within the available screen area (classic WM_NCCALCSIZE gotcha).
+            params = _NcCalcSizeParams.from_address(msg.lParam)
+            if self._is_maximized_win32(hwnd):
+                bx = self._resize_border_thickness(hwnd, horizontal=True)
+                by = self._resize_border_thickness(hwnd, horizontal=False)
+                params.rgrc[0].top += by
+                params.rgrc[0].left += bx
+                params.rgrc[0].right -= bx
+                params.rgrc[0].bottom -= by
+            return True, 0
+
+        if msg.message == _WM_NCHITTEST:
+            # Extract cursor position from LPARAM (screen coords, signed).
+            x_screen = ctypes.c_short(msg.lParam & 0xFFFF).value
+            y_screen = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
+            pt = _ct_wt.POINT(x_screen, y_screen)
+            ctypes.windll.user32.ScreenToClient(hwnd, ctypes.byref(pt))
+
+            local_pos = QPoint(pt.x, pt.y)
+            win_size = self.size()
+            titlebar_rect = self.title_bar.rect().translated(
+                self.title_bar.mapTo(self, QPoint(0, 0))
+            )
+            button_rects = [
+                b.rect().translated(b.mapTo(self, QPoint(0, 0)))
+                for b in (
+                    self.title_bar.de_btn,
+                    self.title_bar.en_btn,
+                    self.title_bar.win_min_btn,
+                    self.title_bar.win_max_btn,
+                    self.title_bar.win_close_btn,
+                )
+            ]
+            grab = self._grab_width(hwnd)
+            result = self._nc_hit_region(local_pos, win_size, titlebar_rect, button_rects, grab)
+            return True, result
+
+        return super().nativeEvent(eventType, message)
+
+    @staticmethod
+    def _nc_hit_region(
+        local_pos: QPoint,
+        win_size: QSize,
+        titlebar_rect: QRect,
+        button_rects: list[QRect],
+        grab: int,
+    ) -> int:
+        """Map a client-local point to a WM_NCHITTEST code (pure geometry).
+
+        Buttons take priority; then resize borders/corners; then caption; else client.
+        """
+        x, y = local_pos.x(), local_pos.y()
+        w, h = win_size.width(), win_size.height()
+
+        for rect in button_rects:
+            if rect.contains(local_pos):
+                return _HTCLIENT
+
+        left = x < grab
+        right = x >= w - grab
+        top = y < grab
+        bottom = y >= h - grab
+
+        if top and left:
+            return _HTTOPLEFT
+        if top and right:
+            return _HTTOPRIGHT
+        if bottom and left:
+            return _HTBOTTOMLEFT
+        if bottom and right:
+            return _HTBOTTOMRIGHT
+        if top:
+            return _HTTOP
+        if bottom:
+            return _HTBOTTOM
+        if left:
+            return _HTLEFT
+        if right:
+            return _HTRIGHT
+
+        if titlebar_rect.contains(local_pos):
+            return _HTCAPTION
+
+        return _HTCLIENT
+
+    def _grab_width(self, hwnd: int) -> int:
+        """DPI-aware resize grab zone: SM_CXSIZEFRAME + SM_CXPADDEDBORDER."""
+        user32 = ctypes.windll.user32
+        if hasattr(user32, "GetSystemMetricsForDpi"):
+            dpi = user32.GetDpiForWindow(hwnd)
+            return int(
+                user32.GetSystemMetricsForDpi(_SM_CXSIZEFRAME, dpi)
+                + user32.GetSystemMetricsForDpi(_SM_CXPADDEDBORDER, dpi)
+            )
+        return int(
+            user32.GetSystemMetrics(_SM_CXSIZEFRAME) + user32.GetSystemMetrics(_SM_CXPADDEDBORDER)
+        )
+
+    def _resize_border_thickness(self, hwnd: int, *, horizontal: bool) -> int:
+        """Frame thickness for the WM_NCCALCSIZE maximized inset."""
+        user32 = ctypes.windll.user32
+        frame = _SM_CXSIZEFRAME if horizontal else _SM_CYSIZEFRAME
+        if hasattr(user32, "GetSystemMetricsForDpi"):
+            dpi = user32.GetDpiForWindow(hwnd)
+            return int(
+                user32.GetSystemMetricsForDpi(frame, dpi)
+                + user32.GetSystemMetricsForDpi(_SM_CXPADDEDBORDER, dpi)
+            )
+        return int(user32.GetSystemMetrics(frame) + user32.GetSystemMetrics(_SM_CXPADDEDBORDER))
+
+    def _is_maximized_win32(self, hwnd: int) -> bool:
+        """Check window maximize state via Win32 GetWindowPlacement."""
+        wp = _WindowPlacement()
+        wp.length = ctypes.sizeof(wp)
+        ctypes.windll.user32.GetWindowPlacement(hwnd, ctypes.byref(wp))
+        return bool(wp.showCmd == _SW_MAXIMIZE)
 
     # ------------------------------------------------------------------
     # Export lifecycle
