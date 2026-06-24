@@ -114,6 +114,12 @@ class _Margins(ctypes.Structure):
     ]
 
 
+def _windll() -> Any:
+    """Access ctypes.windll via getattr so non-Windows mypy does not flag the
+    win32-only attribute. Only ever called on Windows at runtime."""
+    return getattr(ctypes, "windll")  # noqa: B009
+
+
 class MainWindow(QMainWindow):
     """Top-level application window; orchestrates all section widgets."""
 
@@ -264,11 +270,11 @@ class MainWindow(QMainWindow):
 
         # Extend the DWM frame into the client area to keep the shadow.
         margins = _Margins(-1, -1, -1, -1)
-        ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(margins))
+        _windll().dwmapi.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(margins))
 
         # Request Win11 rounded corners (silently ignored on Win10).
         corner = ctypes.c_int(_DWMWCP_ROUND)
-        ctypes.windll.dwmapi.DwmSetWindowAttribute(
+        _windll().dwmapi.DwmSetWindowAttribute(
             hwnd,
             _DWMWA_WINDOW_CORNER_PREFERENCE,
             ctypes.byref(corner),
@@ -276,7 +282,7 @@ class MainWindow(QMainWindow):
         )
 
         # Trigger WM_NCCALCSIZE so the non-client area is removed immediately.
-        ctypes.windll.user32.SetWindowPos(
+        _windll().user32.SetWindowPos(
             hwnd,
             None,
             0,
@@ -482,7 +488,7 @@ class MainWindow(QMainWindow):
             x_screen = ctypes.c_short(msg.lParam & 0xFFFF).value
             y_screen = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
             pt = _ct_wt.POINT(x_screen, y_screen)
-            ctypes.windll.user32.ScreenToClient(hwnd, ctypes.byref(pt))
+            _windll().user32.ScreenToClient(hwnd, ctypes.byref(pt))
 
             local_pos = QPoint(pt.x, pt.y)
             win_size = self.size()
@@ -553,7 +559,7 @@ class MainWindow(QMainWindow):
 
     def _grab_width(self, hwnd: int) -> int:
         """DPI-aware resize grab zone: SM_CXSIZEFRAME + SM_CXPADDEDBORDER."""
-        user32 = ctypes.windll.user32
+        user32 = _windll().user32
         if hasattr(user32, "GetSystemMetricsForDpi"):
             dpi = user32.GetDpiForWindow(hwnd)
             return int(
@@ -566,7 +572,7 @@ class MainWindow(QMainWindow):
 
     def _resize_border_thickness(self, hwnd: int, *, horizontal: bool) -> int:
         """Frame thickness for the WM_NCCALCSIZE maximized inset."""
-        user32 = ctypes.windll.user32
+        user32 = _windll().user32
         frame = _SM_CXSIZEFRAME if horizontal else _SM_CYSIZEFRAME
         if hasattr(user32, "GetSystemMetricsForDpi"):
             dpi = user32.GetDpiForWindow(hwnd)
@@ -580,7 +586,7 @@ class MainWindow(QMainWindow):
         """Check window maximize state via Win32 GetWindowPlacement."""
         wp = _WindowPlacement()
         wp.length = ctypes.sizeof(wp)
-        ctypes.windll.user32.GetWindowPlacement(hwnd, ctypes.byref(wp))
+        _windll().user32.GetWindowPlacement(hwnd, ctypes.byref(wp))
         return bool(wp.showCmd == _SW_MAXIMIZE)
 
     # ------------------------------------------------------------------
