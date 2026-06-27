@@ -8,11 +8,13 @@ from PySide6.QtCore import QDate, QSettings, Signal
 from PySide6.QtWidgets import (
     QDateEdit,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QWidget,
 )
 
+from jwe.gui.theme.tokens import Space
 from jwe.i18n import DEFAULT_LANG, t
 
 # Same pattern as config.py and search.py -- do not diverge.
@@ -35,28 +37,43 @@ class FilterWidget(QWidget):
     # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        layout = QFormLayout(self)
+        layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(Space.SECTION_GAP)
 
         today = QDate.currentDate()
         first_of_month = QDate(today.year(), today.month(), 1)
         last_of_month = first_of_month.addMonths(1).addDays(-1)
 
+        # Left column: From / To. FieldsStayAtSizeHint keeps the date edits at
+        # their natural width so the calendar dropdown stays next to the field
+        # instead of stretching to the window edge.
+        date_form = QFormLayout()
+        date_form.setContentsMargins(0, 0, 0, 0)
+        date_form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
+
         self.from_date = QDateEdit(first_of_month)
         self.from_date.setCalendarPopup(True)
         self.from_date.setDisplayFormat("yyyy-MM-dd")
         self._lbl_from = QLabel()
-        layout.addRow(self._lbl_from, self.from_date)
+        date_form.addRow(self._lbl_from, self.from_date)
 
         self.to_date = QDateEdit(last_of_month)
         self.to_date.setCalendarPopup(True)
         self.to_date.setDisplayFormat("yyyy-MM-dd")
         self._lbl_to = QLabel()
-        layout.addRow(self._lbl_to, self.to_date)
+        date_form.addRow(self._lbl_to, self.to_date)
+
+        # Right column: Projects -- the line edit fills the remaining width.
+        project_form = QFormLayout()
+        project_form.setContentsMargins(0, 0, 0, 0)
 
         self.project_keys_field = QLineEdit()
         self._lbl_projects = QLabel()
-        layout.addRow(self._lbl_projects, self.project_keys_field)
+        project_form.addRow(self._lbl_projects, self.project_keys_field)
+
+        layout.addLayout(date_form)
+        layout.addLayout(project_form, 1)
 
         self.from_date.dateChanged.connect(lambda _: self.validation_changed.emit())
         self.to_date.dateChanged.connect(lambda _: self.validation_changed.emit())
