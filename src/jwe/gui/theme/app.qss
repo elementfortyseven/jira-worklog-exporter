@@ -13,7 +13,42 @@ QWidget {
     font-size: 13px;
 }
 
-/* ---- Section cards (QGroupBox) ---- */
+/* ---- Section cards (SectionCard / QGroupBox legacy) ---- */
+QFrame#sectionCard {
+    background: %(bg.card)s;
+    border: 1px solid %(line.hairline)s;
+    border-radius: %(radius.card)s;
+}
+QLabel#sectionIcon {
+    background: rgba(34,211,238,0.08);
+    border: 1px solid rgba(34,211,238,0.22);
+    border-radius: %(radius.control)s;
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+}
+QLabel#sectionIndex {
+    font-family: %(font.mono)s;
+    font-size: 11px;
+    color: %(accent.base)s;
+    background: transparent;
+}
+QLabel#sectionTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: %(text.primary)s;
+    background: transparent;
+}
+QLabel#sectionSubtitle {
+    font-size: 11px;
+    color: %(text.tertiary)s;
+    background: transparent;
+}
+QFrame#sectionTick {
+    background: %(accent.base)s;
+    border: none;
+}
 QGroupBox {
     background: %(bg.card)s;
     border: 1px solid %(line.hairline)s;

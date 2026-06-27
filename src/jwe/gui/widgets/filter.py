@@ -8,7 +8,6 @@ from PySide6.QtCore import QDate, QSettings, Signal
 from PySide6.QtWidgets import (
     QDateEdit,
     QFormLayout,
-    QGroupBox,
     QLabel,
     QLineEdit,
     QWidget,
@@ -22,13 +21,13 @@ _PROJECT_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]+$")
 _S = "filter"
 
 
-class FilterWidget(QGroupBox):
+class FilterWidget(QWidget):
     """Date range, project key filter, and export scope configuration."""
 
     validation_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(t("section.filter.title", DEFAULT_LANG), parent)
+        super().__init__(parent)
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -37,7 +36,7 @@ class FilterWidget(QGroupBox):
 
     def _build_ui(self) -> None:
         layout = QFormLayout(self)
-        layout.setContentsMargins(8, 16, 8, 8)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         today = QDate.currentDate()
         first_of_month = QDate(today.year(), today.month(), 1)
@@ -106,7 +105,6 @@ class FilterWidget(QGroupBox):
 
     def retranslate_ui(self, lang: str) -> None:
         """Update all translatable strings for *lang*."""
-        self.setTitle(t("section.filter.title", lang))
         self._lbl_from.setText(t("filter.label.from", lang))
         self._lbl_to.setText(t("filter.label.to", lang))
         self._lbl_projects.setText(t("filter.label.projects", lang))

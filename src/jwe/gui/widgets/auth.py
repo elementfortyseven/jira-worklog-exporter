@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -135,7 +134,7 @@ class UserTokenPanel(QWidget):
         self.token_field.setPlaceholderText(t("auth.user.token.placeholder", lang))
 
 
-class AuthWidget(QGroupBox):
+class AuthWidget(QWidget):
     """Collects auth-mode, credentials, and triggers connection test."""
 
     validation_changed    = Signal()
@@ -148,7 +147,7 @@ class AuthWidget(QGroupBox):
         *,
         service: Any = None,
     ) -> None:
-        super().__init__(t("section.auth.title", DEFAULT_LANG), parent)
+        super().__init__(parent)
         self._lang: str = DEFAULT_LANG
         self._svc: Any = service if service is not None else _default_svc
         self._conn_thread: QThread | None = None
@@ -165,10 +164,10 @@ class AuthWidget(QGroupBox):
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(8, 16, 8, 8)
+        outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(6)
 
-        # Mode radio buttons
+        # Mode radio buttons — exposed as auth_mode_selector for the card right-slot.
         mode_row = QWidget()
         mode_layout = QHBoxLayout(mode_row)
         mode_layout.setContentsMargins(0, 0, 0, 0)
@@ -181,7 +180,7 @@ class AuthWidget(QGroupBox):
         mode_layout.addWidget(self.sa_radio)
         mode_layout.addWidget(self.user_radio)
         mode_layout.addStretch()
-        outer.addWidget(mode_row)
+        self.auth_mode_selector: QWidget = mode_row  # placed in SectionCard head-end
 
         # Stacked panels (index 0 = SA, index 1 = User)
         self.stack = QStackedWidget()
@@ -495,7 +494,6 @@ class AuthWidget(QGroupBox):
     def retranslate_ui(self, lang: str) -> None:
         """Update translatable strings for *lang*."""
         self._lang = lang
-        self.setTitle(t("section.auth.title", lang))
         self.sa_radio.setText(t("auth.radio.service_account", lang))
         self.user_radio.setText(t("auth.radio.user_token", lang))
         self.save_token_cb.setText(t("auth.checkbox.save_token", lang))

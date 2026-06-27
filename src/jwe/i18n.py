@@ -41,9 +41,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "app.title": "Jira Worklog Exporter",
         # --------------------------------------------------------------- section.*
         "section.auth.title": "Authentication",
+        "section.auth.subtitle": "Service account or personal token",
         "section.filter.title": "Date & Project Filter",
+        "section.filter.subtitle": "Date range and project scope",
         "section.output.title": "Output",
+        "section.output.subtitle": "File format and destination",
         "section.user_search.title": "Users",
+        "section.users.subtitle": "Search and select Jira users",
         # ----------------------------------------------------------------- auth.*
         "auth.radio.service_account": "Service Account",
         "auth.radio.user_token": "Personal API Token",
@@ -127,9 +131,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "app.title": "Jira Worklog Exporter",
         # --------------------------------------------------------------- section.*
         "section.auth.title": "Authentifizierung",
+        "section.auth.subtitle": "Service-Account oder persoenlicher Token",
         "section.filter.title": "Datum & Projektfilter",
+        "section.filter.subtitle": "Zeitraum und Projektbereich",
         "section.output.title": "Ausgabe",
+        "section.output.subtitle": "Dateiformat und Speicherort",
         "section.user_search.title": "Benutzer",
+        "section.users.subtitle": "Jira-Benutzer suchen und auswaehlen",
         # ----------------------------------------------------------------- auth.*
         "auth.radio.service_account": "Service Account",
         "auth.radio.user_token": "Persönlicher API-Token",

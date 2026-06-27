@@ -7,7 +7,6 @@ from collections.abc import Callable
 
 from PySide6.QtCore import QSize, Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -25,7 +24,7 @@ from jwe.i18n import DEFAULT_LANG, t
 logger = logging.getLogger(__name__)
 
 
-class UserSearchWidget(QGroupBox):
+class UserSearchWidget(QWidget):
     """Search for Jira users and build the selected-users list."""
 
     selection_changed = Signal()
@@ -36,7 +35,7 @@ class UserSearchWidget(QGroupBox):
         *,
         search_fn: Callable[[str], list[User]] | None = None,
     ) -> None:
-        super().__init__(t("section.user_search.title", DEFAULT_LANG), parent)
+        super().__init__(parent)
         self._lang: str = DEFAULT_LANG
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
@@ -65,7 +64,7 @@ class UserSearchWidget(QGroupBox):
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(8, 16, 8, 8)
+        outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(6)
 
         # Search field
@@ -282,7 +281,6 @@ class UserSearchWidget(QGroupBox):
     def retranslate_ui(self, lang: str) -> None:
         """Update translatable strings for *lang*."""
         self._lang = lang
-        self.setTitle(t("section.user_search.title", lang))
         self.search_field.setPlaceholderText(t("user_search.search.placeholder", lang))
         self.btn_add_one.setText(t("user_search.btn.add_one", lang))
         self.btn_add_all.setText(t("user_search.btn.add_all", lang))

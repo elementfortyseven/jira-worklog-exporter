@@ -25,7 +25,7 @@ class TestRuntimeLanguageSwitch:
         # Fixture starts in "de".
         assert main_window._lang == "de"
 
-        auth_title_de = main_window.auth_widget.title()
+        auth_title_de = main_window._auth_card.title()
         export_btn_de = main_window.status_widget.export_btn.text()
         counter_de = main_window.status_widget.issue_label.text()
         placeholder_de = main_window.user_search_widget.search_field.placeholderText()
@@ -33,7 +33,7 @@ class TestRuntimeLanguageSwitch:
         main_window.title_bar.en_btn.click()
         assert main_window._lang == "en"
 
-        assert main_window.auth_widget.title() == t("section.auth.title", "en")
+        assert main_window._auth_card.title() == t("section.auth.title", "en")
         assert main_window.status_widget.export_btn.text() == t("status.btn.export", "en")
         assert main_window.status_widget.issue_label.text() == t(
             "status.counter.issues_n", "en", n=0
@@ -43,7 +43,7 @@ class TestRuntimeLanguageSwitch:
         )
 
         # Each changed — German != English for all four.
-        assert main_window.auth_widget.title() != auth_title_de
+        assert main_window._auth_card.title() != auth_title_de
         assert main_window.status_widget.export_btn.text() != export_btn_de
         assert main_window.status_widget.issue_label.text() != counter_de
         assert main_window.user_search_widget.search_field.placeholderText() != placeholder_de

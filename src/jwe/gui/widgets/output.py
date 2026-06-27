@@ -9,7 +9,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -24,13 +23,13 @@ _DEFAULT_OUTPUT_DIR = "./exports"
 _S = "output"
 
 
-class OutputWidget(QGroupBox):
+class OutputWidget(QWidget):
     """Output directory, delimiter, column profile, and API-version settings."""
 
     validation_changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(t("section.output.title", DEFAULT_LANG), parent)
+        super().__init__(parent)
         self._lang: str = DEFAULT_LANG
         Path(_DEFAULT_OUTPUT_DIR).mkdir(exist_ok=True)
         self._build_ui()
@@ -41,7 +40,7 @@ class OutputWidget(QGroupBox):
 
     def _build_ui(self) -> None:
         layout = QFormLayout(self)
-        layout.setContentsMargins(8, 16, 8, 8)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         dir_row = QWidget()
         dir_layout = QHBoxLayout(dir_row)
@@ -139,7 +138,6 @@ class OutputWidget(QGroupBox):
     def retranslate_ui(self, lang: str) -> None:
         """Update all translatable strings for *lang*."""
         self._lang = lang
-        self.setTitle(t("section.output.title", lang))
         self._lbl_output_dir.setText(t("output.label.output_dir", lang))
         self._lbl_delimiter.setText(t("output.label.delimiter", lang))
         self._lbl_profile.setText(t("output.label.profile", lang))

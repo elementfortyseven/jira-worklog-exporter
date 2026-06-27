@@ -71,9 +71,13 @@ def test_all_keys_present_in_de(key: str) -> None:
 @pytest.mark.parametrize("key", [
     "app.title",
     "section.auth.title",
+    "section.auth.subtitle",
     "section.filter.title",
+    "section.filter.subtitle",
     "section.output.title",
+    "section.output.subtitle",
     "section.user_search.title",
+    "section.users.subtitle",
 ])
 def test_section_keys_resolve(key: str, lang: str) -> None:
     result = t(key, lang)

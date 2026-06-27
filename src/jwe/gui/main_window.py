@@ -45,6 +45,7 @@ from jwe.gui.theme.tokens import WINDOW_SHADOW
 from jwe.gui.widgets.auth import AuthWidget
 from jwe.gui.widgets.filter import FilterWidget
 from jwe.gui.widgets.output import OutputWidget
+from jwe.gui.widgets.section_card import SectionCard
 from jwe.gui.widgets.status import StatusWidget
 from jwe.gui.widgets.title_bar import TitleBar
 from jwe.gui.widgets.user_search import UserSearchWidget
@@ -227,10 +228,32 @@ class MainWindow(QMainWindow):
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(8, 8, 8, 8)
         content_layout.setSpacing(8)
-        content_layout.addWidget(self.auth_widget)
-        content_layout.addWidget(self.user_search_widget)
-        content_layout.addWidget(self.filter_widget)
-        content_layout.addWidget(self.output_widget)
+
+        self._auth_card = SectionCard(
+            "01", "plug", "section.auth.title", "section.auth.subtitle"
+        )
+        self._auth_card.content_layout().addWidget(self.auth_widget)
+        self._auth_card.set_head_widget(self.auth_widget.auth_mode_selector)
+        content_layout.addWidget(self._auth_card)
+
+        self._users_card = SectionCard(
+            "02", "users", "section.user_search.title", "section.users.subtitle"
+        )
+        self._users_card.content_layout().addWidget(self.user_search_widget)
+        content_layout.addWidget(self._users_card)
+
+        self._filter_card = SectionCard(
+            "03", "calendar", "section.filter.title", "section.filter.subtitle"
+        )
+        self._filter_card.content_layout().addWidget(self.filter_widget)
+        content_layout.addWidget(self._filter_card)
+
+        self._output_card = SectionCard(
+            "04", "output", "section.output.title", "section.output.subtitle"
+        )
+        self._output_card.content_layout().addWidget(self.output_widget)
+        content_layout.addWidget(self._output_card)
+
         content_layout.addStretch()
         scroll.setWidget(content)
         frame_layout.addWidget(scroll, 1)
@@ -711,6 +734,10 @@ class MainWindow(QMainWindow):
     def _retranslate_all(self, lang: str) -> None:
         self.setWindowTitle(t("app.title", lang))
         self.title_bar.retranslate_ui(lang)
+        self._auth_card.retranslate_ui(lang)
+        self._users_card.retranslate_ui(lang)
+        self._filter_card.retranslate_ui(lang)
+        self._output_card.retranslate_ui(lang)
         self.auth_widget.retranslate_ui(lang)
         self.user_search_widget.retranslate_ui(lang)
         self.filter_widget.retranslate_ui(lang)
