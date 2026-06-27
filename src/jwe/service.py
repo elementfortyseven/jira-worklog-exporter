@@ -227,6 +227,10 @@ def load_token(auth_mode: AuthMode, identifier: str) -> str | None:
 def delete_token(auth_mode: AuthMode, identifier: str) -> None:
     """Remove an API token from the OS credential store.
 
+    Deleting a token that is not present is a no-op (idempotent): backends
+    such as the Windows credential store raise on a missing entry, which we
+    treat as success -- consistent with :func:`load_token`'s tolerant read.
+
     Args:
         auth_mode: Auth mode used when the token was saved.
         identifier: ``cloud_id`` or ``site_url`` (must match
@@ -237,7 +241,10 @@ def delete_token(auth_mode: AuthMode, identifier: str) -> None:
     """
     _require_keyring()
     assert keyring is not None
-    keyring.delete_password(_KEYRING_SERVICE, _keyring_key(auth_mode, identifier))
+    try:
+        keyring.delete_password(_KEYRING_SERVICE, _keyring_key(auth_mode, identifier))
+    except Exception as exc:  # keyring backends raise OS-specific types; a missing token is a no-op
+        logger.debug("Keyring delete failed (no-op): %r", exc)
 
 
 # ---------------------------------------------------------------------------

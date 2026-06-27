@@ -196,6 +196,18 @@ class TestTokenPersistence:
         with mock.patch.object(service, "keyring", None), pytest.raises(RuntimeError, match="keyring"):
             service.delete_token(AuthMode.SERVICE_ACCOUNT, _CLOUD_ID)
 
+    def test_delete_missing_token_is_idempotent(self) -> None:
+        # Backends (e.g. the Windows credential store) raise when the entry is
+        # absent; delete_token must treat that as a no-op, not propagate (JWE-51).
+        mock_kr = mock.MagicMock()
+        mock_kr.delete_password.side_effect = Exception("no such entry")
+
+        with mock.patch.object(service, "keyring", mock_kr):
+            service.delete_token(AuthMode.SERVICE_ACCOUNT, _CLOUD_ID)  # must not raise
+
+        expected_key = f"jwe:service-account:{_CLOUD_ID}"
+        mock_kr.delete_password.assert_called_once_with("jwe", expected_key)
+
 
 # ---------------------------------------------------------------------------
 # config_from_env
