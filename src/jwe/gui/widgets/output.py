@@ -47,7 +47,6 @@ class OutputWidget(QWidget):
         dir_layout.setContentsMargins(0, 0, 0, 0)
         self.output_dir_field = QLineEdit(_DEFAULT_OUTPUT_DIR)
         self.browse_btn = QPushButton()
-        self.browse_btn.setFixedWidth(80)
         dir_layout.addWidget(self.output_dir_field, 1)
         dir_layout.addWidget(self.browse_btn)
         self._lbl_output_dir = QLabel()
@@ -74,19 +73,36 @@ class OutputWidget(QWidget):
         self._lbl_api_version = QLabel()
         layout.addRow(self._lbl_api_version, self.api_version_combo)
 
-        self.output_dir_field.textChanged.connect(lambda _: self.validation_changed.emit())
+        self.output_dir_field.textChanged.connect(lambda _: self._on_dir_changed())
         self.browse_btn.clicked.connect(self._on_browse)
 
         self.retranslate_ui(DEFAULT_LANG)
+
+    # ------------------------------------------------------------------
+    # Field-change dispatcher
+    # ------------------------------------------------------------------
+
+    def _on_dir_changed(self) -> None:
+        """Update invalid styling first, then notify listeners."""
+        self._update_invalid_state()
+        self.validation_changed.emit()
+
+    def _update_invalid_state(self) -> None:
+        """Mark output_dir_field invalid when it has content but the path is missing."""
+        text = self.output_dir_field.text().strip()
+        inv = bool(text) and not Path(text).exists()
+        field = self.output_dir_field
+        if field.property("invalid") != inv:
+            field.setProperty("invalid", inv)
+            field.style().unpolish(field)
+            field.style().polish(field)
 
     # ------------------------------------------------------------------
     # Slots
     # ------------------------------------------------------------------
 
     def _on_browse(self) -> None:
-        chosen = QFileDialog.getExistingDirectory(
-            self, t("output.browse_dialog.title", self._lang)
-        )
+        chosen = QFileDialog.getExistingDirectory(self, t("output.browse_dialog.title", self._lang))
         if chosen:
             self.output_dir_field.setText(chosen)
 

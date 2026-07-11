@@ -99,9 +99,7 @@ class TestAutoCreateOutputDir:
 
 
 class TestIsValid:
-    def test_valid_when_output_dir_exists(
-        self, widget: OutputWidget, tmp_path: Path
-    ) -> None:
+    def test_valid_when_output_dir_exists(self, widget: OutputWidget, tmp_path: Path) -> None:
         widget.output_dir_field.setText(str(tmp_path))
         assert widget.is_valid() is True
 
@@ -115,9 +113,7 @@ class TestIsValid:
         widget.output_dir_field.setText("")
         assert widget.is_valid() is False
 
-    def test_valid_after_setting_existing_dir(
-        self, widget: OutputWidget, tmp_path: Path
-    ) -> None:
+    def test_valid_after_setting_existing_dir(self, widget: OutputWidget, tmp_path: Path) -> None:
         widget.output_dir_field.setText(str(tmp_path / "ghost"))
         assert widget.is_valid() is False
         widget.output_dir_field.setText(str(tmp_path))
@@ -153,7 +149,10 @@ class TestBrowseButton:
             "jwe.gui.widgets.output.QFileDialog.getExistingDirectory",
             return_value="",
         ) as mock_dialog:
-            qtbot.mouseClick(widget.browse_btn, __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.MouseButton.LeftButton)
+            qtbot.mouseClick(
+                widget.browse_btn,
+                __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.MouseButton.LeftButton,
+            )
             mock_dialog.assert_called_once()
 
     def test_browse_btn_sets_path_on_accept(
@@ -165,18 +164,22 @@ class TestBrowseButton:
             "jwe.gui.widgets.output.QFileDialog.getExistingDirectory",
             return_value=chosen,
         ):
-            qtbot.mouseClick(widget.browse_btn, __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.MouseButton.LeftButton)
+            qtbot.mouseClick(
+                widget.browse_btn,
+                __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.MouseButton.LeftButton,
+            )
         assert widget.output_dir_field.text() == chosen
 
-    def test_browse_btn_does_not_change_path_on_cancel(
-        self, qtbot, widget: OutputWidget
-    ) -> None:
+    def test_browse_btn_does_not_change_path_on_cancel(self, qtbot, widget: OutputWidget) -> None:
         original = widget.output_dir_field.text()
         with patch(
             "jwe.gui.widgets.output.QFileDialog.getExistingDirectory",
             return_value="",
         ):
-            qtbot.mouseClick(widget.browse_btn, __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.MouseButton.LeftButton)
+            qtbot.mouseClick(
+                widget.browse_btn,
+                __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.MouseButton.LeftButton,
+            )
         assert widget.output_dir_field.text() == original
 
 
@@ -196,12 +199,8 @@ class TestQSettings:
         widget.load_settings(isolated_settings)
         assert widget.output_dir_field.text() == target
 
-    def test_delimiter_roundtrip(
-        self, widget: OutputWidget, isolated_settings: QSettings
-    ) -> None:
-        widget.delimiter_combo.setCurrentIndex(
-            widget.delimiter_combo.findData(";")
-        )
+    def test_delimiter_roundtrip(self, widget: OutputWidget, isolated_settings: QSettings) -> None:
+        widget.delimiter_combo.setCurrentIndex(widget.delimiter_combo.findData(";"))
         widget.save_settings(isolated_settings)
         widget.delimiter_combo.setCurrentIndex(0)
         widget.load_settings(isolated_settings)
@@ -221,10 +220,35 @@ class TestQSettings:
     def test_api_version_roundtrip(
         self, widget: OutputWidget, isolated_settings: QSettings
     ) -> None:
-        widget.api_version_combo.setCurrentIndex(
-            widget.api_version_combo.findData(2)
-        )
+        widget.api_version_combo.setCurrentIndex(widget.api_version_combo.findData(2))
         widget.save_settings(isolated_settings)
         widget.api_version_combo.setCurrentIndex(0)
         widget.load_settings(isolated_settings)
         assert widget.api_version_combo.currentData() == 2
+
+
+# ---------------------------------------------------------------------------
+# JWE-36: [invalid] property and browse_btn width
+# ---------------------------------------------------------------------------
+
+
+class TestInvalidProperty:
+    def test_nonexistent_path_marks_dir_field_invalid(
+        self, widget: OutputWidget, tmp_path: Path
+    ) -> None:
+        widget.output_dir_field.setText(str(tmp_path / "ghost"))
+        assert widget.output_dir_field.property("invalid") is True
+
+    def test_existing_path_clears_invalid(self, widget: OutputWidget, tmp_path: Path) -> None:
+        widget.output_dir_field.setText(str(tmp_path / "ghost"))
+        widget.output_dir_field.setText(str(tmp_path))
+        assert not widget.output_dir_field.property("invalid")
+
+    def test_empty_path_not_marked_invalid(self, widget: OutputWidget) -> None:
+        # Empty is handled by is_valid() returning False; no red border on blank.
+        widget.output_dir_field.setText("some")
+        widget.output_dir_field.setText("")
+        assert not widget.output_dir_field.property("invalid")
+
+    def test_browse_btn_width_unrestricted(self, widget: OutputWidget) -> None:
+        assert widget.browse_btn.maximumWidth() > 80

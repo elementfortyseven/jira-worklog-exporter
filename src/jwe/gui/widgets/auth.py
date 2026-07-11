@@ -6,17 +6,21 @@ import contextlib
 import logging
 from typing import Any
 
-from PySide6.QtCore import QSettings, QThread, Signal
+from PySide6.QtCore import QPointF, QRectF, QSettings, Qt, QThread, Signal
+from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
+    QApplication,
     QButtonGroup,
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QRadioButton,
+    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -25,6 +29,7 @@ from PySide6.QtWidgets import (
 import jwe.service as _default_svc
 from jwe.api.auth import AuthHeaderStyle, AuthMode
 from jwe.config import ExportConfig
+from jwe.gui.theme import tokens
 from jwe.gui.workers.cloud_id_discover import CloudIdDiscoverWorker
 from jwe.gui.workers.connection_test import ConnectionTestWorker
 from jwe.i18n import DEFAULT_LANG, diag, t
@@ -32,6 +37,55 @@ from jwe.i18n import DEFAULT_LANG, diag, t
 logger = logging.getLogger(__name__)
 
 _S = "auth"  # QSettings key prefix
+
+_EYE_SZ = 16  # logical px for eye-icon content area
+
+
+def _screen_dpr() -> float:
+    """Return the primary screen device-pixel ratio, or 1.0 if unavailable."""
+    app = QApplication.instance()
+    if not isinstance(app, QApplication):
+        return 1.0
+    screen = app.primaryScreen()
+    return screen.devicePixelRatio() if screen is not None else 1.0
+
+
+def _eye_icon(visible: bool, color: QColor, dpr: float = 1.0) -> QIcon:
+    """Return a QPainter-drawn eye / eye-off QIcon.
+
+    eye-on:  almond outline + filled iris
+    eye-off: same + diagonal slash
+    """
+    phys = max(1, round(_EYE_SZ * dpr))
+    pm = QPixmap(phys, phys)
+    pm.setDevicePixelRatio(dpr)
+    pm.fill(Qt.GlobalColor.transparent)
+
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    pen = QPen(color)
+    pen.setWidthF(1.2)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+
+    # Eye oval (almond approximated by wide ellipse)
+    p.drawEllipse(QRectF(0.5, 4.0, 15.0, 8.0))
+
+    # Iris — small filled circle at centre
+    p.setBrush(color)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QRectF(5.5, 5.5, 5.0, 5.0))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+
+    if not visible:
+        # Diagonal slash from top-left to bottom-right
+        slash_pen = QPen(color)
+        slash_pen.setWidthF(1.5)
+        p.setPen(slash_pen)
+        p.drawLine(QPointF(2.0, 2.0), QPointF(14.0, 14.0))
+
+    p.end()
+    return QIcon(pm)
 
 
 class ServiceAccountPanel(QWidget):
@@ -41,6 +95,8 @@ class ServiceAccountPanel(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._token_visible: bool = False
+        self._eye_action: QAction
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -53,7 +109,6 @@ class ServiceAccountPanel(QWidget):
         url_layout.setContentsMargins(0, 0, 0, 0)
         self.discovery_url_field = QLineEdit()
         self.discover_btn = QPushButton()
-        self.discover_btn.setFixedWidth(80)
         url_layout.addWidget(self.discovery_url_field, 1)
         url_layout.addWidget(self.discover_btn)
         self._lbl_site_url = QLabel()
@@ -69,6 +124,11 @@ class ServiceAccountPanel(QWidget):
 
         self.token_field = QLineEdit()
         self.token_field.setEchoMode(QLineEdit.EchoMode.Password)
+        self._eye_action = self.token_field.addAction(
+            _eye_icon(False, QColor(tokens.Text.TERTIARY), _screen_dpr()),
+            QLineEdit.ActionPosition.TrailingPosition,
+        )
+        self._eye_action.triggered.connect(lambda _: self._toggle_token_visibility())
         self._lbl_token = QLabel()
         layout.addRow(self._lbl_token, self.token_field)
 
@@ -83,6 +143,15 @@ class ServiceAccountPanel(QWidget):
         )
 
         self.retranslate_ui(DEFAULT_LANG)
+
+    def _toggle_token_visibility(self) -> None:
+        self._token_visible = not self._token_visible
+        self.token_field.setEchoMode(
+            QLineEdit.EchoMode.Normal if self._token_visible else QLineEdit.EchoMode.Password
+        )
+        self._eye_action.setIcon(
+            _eye_icon(self._token_visible, QColor(tokens.Text.TERTIARY), _screen_dpr())
+        )
 
     def retranslate_ui(self, lang: str) -> None:
         """Update translatable strings for *lang*."""
@@ -103,6 +172,8 @@ class UserTokenPanel(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._token_visible: bool = False
+        self._eye_action: QAction
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -119,10 +190,24 @@ class UserTokenPanel(QWidget):
 
         self.token_field = QLineEdit()
         self.token_field.setEchoMode(QLineEdit.EchoMode.Password)
+        self._eye_action = self.token_field.addAction(
+            _eye_icon(False, QColor(tokens.Text.TERTIARY), _screen_dpr()),
+            QLineEdit.ActionPosition.TrailingPosition,
+        )
+        self._eye_action.triggered.connect(lambda _: self._toggle_token_visibility())
         self._lbl_token = QLabel()
         layout.addRow(self._lbl_token, self.token_field)
 
         self.retranslate_ui(DEFAULT_LANG)
+
+    def _toggle_token_visibility(self) -> None:
+        self._token_visible = not self._token_visible
+        self.token_field.setEchoMode(
+            QLineEdit.EchoMode.Normal if self._token_visible else QLineEdit.EchoMode.Password
+        )
+        self._eye_action.setIcon(
+            _eye_icon(self._token_visible, QColor(tokens.Text.TERTIARY), _screen_dpr())
+        )
 
     def retranslate_ui(self, lang: str) -> None:
         """Update translatable strings for *lang*."""
@@ -137,8 +222,8 @@ class UserTokenPanel(QWidget):
 class AuthWidget(QWidget):
     """Collects auth-mode, credentials, and triggers connection test."""
 
-    validation_changed    = Signal()
-    connection_verified   = Signal(object)  # payload: ExportConfig
+    validation_changed = Signal()
+    connection_verified = Signal(object)  # payload: ExportConfig
     connection_invalidated = Signal()
 
     def __init__(
@@ -167,20 +252,24 @@ class AuthWidget(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(6)
 
-        # Mode radio buttons — exposed as auth_mode_selector for the card right-slot.
-        mode_row = QWidget()
-        mode_layout = QHBoxLayout(mode_row)
-        mode_layout.setContentsMargins(0, 0, 0, 0)
+        # Auth-mode segmented pill — exposed via auth_mode_selector for the card
+        # right-slot; NOT added to the outer layout here.
+        pill = QFrame()
+        pill.setObjectName("authModePill")
+        pill_layout = QHBoxLayout(pill)
+        pill_layout.setContentsMargins(3, 3, 3, 3)
+        pill_layout.setSpacing(3)
         self.sa_radio = QRadioButton()
+        self.sa_radio.setObjectName("authModeBtn")
         self.user_radio = QRadioButton()
+        self.user_radio.setObjectName("authModeBtn")
         self._mode_group = QButtonGroup(self)
         self._mode_group.addButton(self.sa_radio, 0)
         self._mode_group.addButton(self.user_radio, 1)
         self.sa_radio.setChecked(True)
-        mode_layout.addWidget(self.sa_radio)
-        mode_layout.addWidget(self.user_radio)
-        mode_layout.addStretch()
-        self.auth_mode_selector: QWidget = mode_row  # placed in SectionCard head-end
+        pill_layout.addWidget(self.sa_radio, 1)
+        pill_layout.addWidget(self.user_radio, 1)
+        self.auth_mode_selector: QWidget = pill
 
         # Stacked panels (index 0 = SA, index 1 = User)
         self.stack = QStackedWidget()
@@ -188,6 +277,7 @@ class AuthWidget(QWidget):
         self.user_panel = UserTokenPanel()
         self.stack.addWidget(self.sa_panel)
         self.stack.addWidget(self.user_panel)
+        self.stack.currentChanged.connect(self._on_stack_page_changed)
         outer.addWidget(self.stack)
 
         # Keyring row
@@ -217,8 +307,9 @@ class AuthWidget(QWidget):
         self.test_btn.clicked.connect(self._on_test_connection_clicked)
         self.save_token_cb.toggled.connect(self._on_save_token_toggled)
 
-        # Validation wiring -- route through _on_field_changed so that
-        # connection_invalidated is emitted when fields change after a successful verify.
+        # Validation wiring — route through _on_field_changed so that
+        # _update_invalid_state runs before validation_changed is emitted and
+        # connection_invalidated fires when fields change after a successful verify.
         self.sa_panel.cloud_id_field.textChanged.connect(lambda _: self._on_field_changed())
         self.sa_panel.email_field.textChanged.connect(lambda _: self._on_field_changed())
         self.sa_panel.token_field.textChanged.connect(lambda _: self._on_field_changed())
@@ -228,6 +319,7 @@ class AuthWidget(QWidget):
         self._mode_group.idClicked.connect(lambda _: self._on_field_changed())
 
         self.retranslate_ui(DEFAULT_LANG)
+        self._on_stack_page_changed(0)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -245,6 +337,20 @@ class AuthWidget(QWidget):
         if self._current_mode() == AuthMode.SERVICE_ACCOUNT:
             return self.sa_panel.token_field
         return self.user_panel.token_field
+
+    def _on_stack_page_changed(self, index: int) -> None:
+        """Size the stack to the current page by ignoring non-current pages."""
+        for i in range(self.stack.count()):
+            page = self.stack.widget(i)
+            if page is None:
+                continue
+            sp = page.sizePolicy()
+            if i == index:
+                sp.setVerticalPolicy(QSizePolicy.Policy.Preferred)
+            else:
+                sp.setVerticalPolicy(QSizePolicy.Policy.Ignored)
+            page.setSizePolicy(sp)
+        self.stack.updateGeometry()
 
     def get_export_config_partial(self) -> ExportConfig:
         """Build an ExportConfig with only the auth fields filled in.
@@ -287,6 +393,32 @@ class AuthWidget(QWidget):
             and self.user_panel.token_field.text()
         )
 
+    def _update_invalid_state(self) -> None:
+        """Set [invalid] property on required fields; guard avoids spurious re-polish."""
+        mode = self._current_mode()
+        sa_active = mode == AuthMode.SERVICE_ACCOUNT
+        for field, empty in (
+            (self.sa_panel.cloud_id_field, not self.sa_panel.cloud_id_field.text().strip()),
+            (self.sa_panel.email_field, not self.sa_panel.email_field.text().strip()),
+            (self.sa_panel.token_field, not self.sa_panel.token_field.text()),
+        ):
+            inv = sa_active and empty
+            if field.property("invalid") != inv:
+                field.setProperty("invalid", inv)
+                field.style().unpolish(field)
+                field.style().polish(field)
+        user_active = not sa_active
+        for field, empty in (
+            (self.user_panel.site_url_field, not self.user_panel.site_url_field.text().strip()),
+            (self.user_panel.email_field, not self.user_panel.email_field.text().strip()),
+            (self.user_panel.token_field, not self.user_panel.token_field.text()),
+        ):
+            inv = user_active and empty
+            if field.property("invalid") != inv:
+                field.setProperty("invalid", inv)
+                field.style().unpolish(field)
+                field.style().polish(field)
+
     # ------------------------------------------------------------------
     # Keyring
     # ------------------------------------------------------------------
@@ -317,7 +449,13 @@ class AuthWidget(QWidget):
     # ------------------------------------------------------------------
 
     def _on_field_changed(self) -> None:
-        """Emit connection_invalidated (once) when fields change after a successful verify."""
+        """Update invalid styling first, then emit signals.
+
+        Calling _update_invalid_state before emitting validation_changed
+        ensures external listeners see the updated [invalid] property.
+        setProperty/unpolish/polish do not emit textChanged, so no loop.
+        """
+        self._update_invalid_state()
         if self._verified:
             self._verified = False
             self.connection_invalidated.emit()
@@ -408,9 +546,7 @@ class AuthWidget(QWidget):
 
     def _on_discovered(self, cloud_id: str) -> None:
         self.sa_panel.cloud_id_field.setText(cloud_id)
-        self.status_label.setText(
-            t("auth.status.cloud_id_found", self._lang, cloud_id=cloud_id)
-        )
+        self.status_label.setText(t("auth.status.cloud_id_found", self._lang, cloud_id=cloud_id))
 
     def _on_discover_failed(self, message: str) -> None:
         self.status_label.setText(diag("auth.status.discovery_failed", message=message))
@@ -437,7 +573,9 @@ class AuthWidget(QWidget):
 
     def stop_running_threads(self) -> None:
         # TODO stage 5b: graceful cancel for export worker
-        threads = [th for th in (self._conn_thread, self._disc_thread) if th is not None and th.isRunning()]
+        threads = [
+            th for th in (self._conn_thread, self._disc_thread) if th is not None and th.isRunning()
+        ]
         for thread in threads:
             thread.quit()
         for thread in threads:

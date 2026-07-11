@@ -7,7 +7,6 @@ QMainWindow, QDialog {
     background: %(bg.window)s;
 }
 QWidget {
-    background: %(bg.window)s;
     color: %(text.primary)s;
     font-family: %(font.sans)s;
     font-size: 13px;
@@ -88,6 +87,9 @@ QPushButton {
     border: 1px solid %(line.strong)s;
     border-radius: %(radius.control)s;
     padding: 9px 16px;
+    font-family: %(font.mono)s;
+    font-size: 12px;
+    font-weight: 500;
 }
 QPushButton:hover {
     border-color: %(accent.base)s;
@@ -106,6 +108,7 @@ QPushButton#primaryBtn:hover {
 QPushButton#primaryBtn:disabled {
     background: rgba(126,166,206,0.12);
     color: %(text.tertiary)s;
+    border: 1px solid %(line.soft)s;
 }
 
 /* ---- Radio buttons & checkboxes ---- */
@@ -273,4 +276,155 @@ QPushButton#winMax:hover {
 QPushButton#winClose:hover {
     background: %(status.err)s;
     color: #FFFFFF;
+}
+
+/* ---- Input hover / disabled / error states ---- */
+QLineEdit:hover, QComboBox:hover, QDateEdit:hover, QSpinBox:hover {
+    border: 1px solid %(line.strong)s;
+}
+/* Re-assert focus border after hover so accent wins when both are active */
+QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QSpinBox:focus {
+    border: 1px solid %(accent.base)s;
+    background: %(bg.inputFocus)s;
+}
+QLineEdit:disabled, QComboBox:disabled, QDateEdit:disabled, QSpinBox:disabled {
+    background: %(bg.window)s;
+    color: %(text.tertiary)s;
+    border-color: %(line.soft)s;
+}
+QLineEdit[invalid="true"],
+QComboBox[invalid="true"],
+QDateEdit[invalid="true"],
+QSpinBox[invalid="true"] {
+    border-color: %(status.err)s;
+}
+
+/* ---- QComboBox popup list ---- */
+QComboBox QAbstractItemView {
+    background: %(bg.card)s;
+    border: 1px solid %(line.hairline)s;
+    color: %(text.primary)s;
+    selection-background-color: %(accent.base)s;
+    selection-color: %(accent.ink)s;
+    outline: none;
+    padding: 4px;
+}
+QComboBox QAbstractItemView::item {
+    min-height: 28px;
+    padding: 4px 8px;
+    border-radius: %(radius.control)s;
+}
+QComboBox QAbstractItemView::item:hover {
+    background: rgba(34,211,238,0.08);
+}
+QComboBox QAbstractItemView::item:selected {
+    background: %(accent.base)s;
+    color: %(accent.ink)s;
+}
+
+/* ---- Button disabled and ghost variant ---- */
+QPushButton:disabled {
+    background: %(bg.card)s;
+    color: %(text.tertiary)s;
+    border-color: %(line.soft)s;
+}
+QPushButton#ghostBtn {
+    background: transparent;
+}
+QPushButton#ghostBtn:hover {
+    border-color: %(accent.base)s;
+    color: %(accent.base)s;
+    background: transparent;
+}
+QPushButton#ghostBtn:disabled {
+    background: transparent;
+    color: %(text.tertiary)s;
+    border-color: %(line.soft)s;
+}
+
+/* ---- Segmented auth-mode control (styled QRadioButtons as pill) ---- */
+QFrame#authModePill {
+    background: %(bg.input)s;
+    border: 1px solid %(line.hairline)s;
+    border-radius: 999px;
+}
+QRadioButton#authModeBtn {
+    background: transparent;
+    color: %(text.secondary)s;
+    border-radius: 999px;
+    padding: 6px 14px;
+    spacing: 0px;
+    font-family: %(font.mono)s;
+    font-size: 11px;
+    font-weight: 500;
+}
+QRadioButton#authModeBtn:checked {
+    background: %(accent.base)s;
+    color: %(accent.ink)s;
+    font-weight: 600;
+}
+QRadioButton#authModeBtn::indicator {
+    width: 0px;
+    height: 0px;
+    margin: 0px;
+}
+
+/* ---- Calendar popup dark theme ---- */
+QCalendarWidget QWidget {
+    background: %(bg.card)s;
+    color: %(text.primary)s;
+    alternate-background-color: %(bg.card2)s;
+}
+QCalendarWidget QAbstractItemView {
+    background: %(bg.card)s;
+    color: %(text.primary)s;
+    selection-background-color: %(accent.base)s;
+    selection-color: %(accent.ink)s;
+    gridline-color: %(line.soft)s;
+}
+QCalendarWidget QAbstractItemView:enabled {
+    color: %(text.primary)s;
+}
+QCalendarWidget QAbstractItemView:disabled {
+    color: %(text.tertiary)s;
+}
+QCalendarWidget QAbstractItemView::item:hover {
+    background: rgba(34,211,238,0.08);
+    color: %(accent.base)s;
+}
+QCalendarWidget QAbstractItemView::item:selected {
+    background: %(accent.base)s;
+    color: %(accent.ink)s;
+}
+QCalendarWidget QToolButton {
+    background: transparent;
+    border: none;
+    color: %(text.primary)s;
+    padding: 4px 8px;
+    border-radius: %(radius.control)s;
+}
+QCalendarWidget QToolButton:hover {
+    background: rgba(34,211,238,0.08);
+    color: %(accent.base)s;
+}
+QCalendarWidget #qt_calendar_navigationbar {
+    background: %(bg.card2)s;
+    border-bottom: 1px solid %(line.hairline)s;
+    padding: 4px;
+}
+QCalendarWidget QSpinBox {
+    background: %(bg.input)s;
+    border: 1px solid %(line.hairline)s;
+    border-radius: %(radius.control)s;
+    color: %(text.primary)s;
+    padding: 2px 6px;
+}
+QCalendarWidget QMenu {
+    background: %(bg.card)s;
+    border: 1px solid %(line.hairline)s;
+    color: %(text.primary)s;
+}
+QCalendarWidget QMenu::item:selected {
+    background: %(accent.base)s;
+    color: %(accent.ink)s;
 }

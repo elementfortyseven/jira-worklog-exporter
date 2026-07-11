@@ -75,11 +75,45 @@ class FilterWidget(QWidget):
         layout.addLayout(date_form)
         layout.addLayout(project_form, 1)
 
-        self.from_date.dateChanged.connect(lambda _: self.validation_changed.emit())
-        self.to_date.dateChanged.connect(lambda _: self.validation_changed.emit())
-        self.project_keys_field.textChanged.connect(lambda _: self.validation_changed.emit())
+        self.from_date.dateChanged.connect(lambda _: self._on_field_changed())
+        self.to_date.dateChanged.connect(lambda _: self._on_field_changed())
+        self.project_keys_field.textChanged.connect(lambda _: self._on_field_changed())
 
         self.retranslate_ui(DEFAULT_LANG)
+
+    # ------------------------------------------------------------------
+    # Field-change dispatcher
+    # ------------------------------------------------------------------
+
+    def _on_field_changed(self) -> None:
+        """Update invalid styling first, then notify listeners.
+
+        Keeping _update_invalid_state before validation_changed.emit() means
+        external listeners already see the updated [invalid] property.
+        setProperty/unpolish/polish do not emit dateChanged or textChanged,
+        so there is no signal loop.
+        """
+        self._update_invalid_state()
+        self.validation_changed.emit()
+
+    def _update_invalid_state(self) -> None:
+        """Set [invalid] on date and project-key fields; guard avoids spurious re-polish."""
+        date_inv = self.from_date.date() > self.to_date.date()
+        for widget in (self.from_date, self.to_date):
+            if widget.property("invalid") != date_inv:
+                widget.setProperty("invalid", date_inv)
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+
+        raw = self.project_keys_field.text().strip()
+        proj_inv = bool(raw) and not all(
+            _PROJECT_KEY_RE.match(tok.strip()) for tok in raw.split(",")
+        )
+        field = self.project_keys_field
+        if field.property("invalid") != proj_inv:
+            field.setProperty("invalid", proj_inv)
+            field.style().unpolish(field)
+            field.style().polish(field)
 
     # ------------------------------------------------------------------
     # Validation

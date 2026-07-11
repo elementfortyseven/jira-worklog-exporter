@@ -21,7 +21,9 @@ from jwe.gui.widgets.auth import AuthWidget
 # Fixtures
 # ---------------------------------------------------------------------------
 
-_FAKE_USER = User(account_id="acc-1", display_name="Bot User", email="bot@sa.atlassian.com", active=True)
+_FAKE_USER = User(
+    account_id="acc-1", display_name="Bot User", email="bot@sa.atlassian.com", active=True
+)
 _FAKE_CLOUD_ID = "aaaabbbb-cccc-dddd-eeee-ffffffffffff"
 
 
@@ -64,15 +66,11 @@ class TestModeSwitch:
     def test_stack_index_0_by_default(self, auth_widget: AuthWidget) -> None:
         assert auth_widget.stack.currentIndex() == 0
 
-    def test_switch_to_user_token_changes_stack(
-        self, auth_widget: AuthWidget
-    ) -> None:
+    def test_switch_to_user_token_changes_stack(self, auth_widget: AuthWidget) -> None:
         auth_widget.user_radio.click()
         assert auth_widget.stack.currentIndex() == 1
 
-    def test_switch_back_to_sa_changes_stack(
-        self, auth_widget: AuthWidget
-    ) -> None:
+    def test_switch_back_to_sa_changes_stack(self, auth_widget: AuthWidget) -> None:
         auth_widget.user_radio.click()
         assert auth_widget.stack.currentIndex() == 1
         auth_widget.sa_radio.click()
@@ -96,11 +94,10 @@ class TestSAPanelFields:
 
     def test_has_token_field_password_mode(self, auth_widget: AuthWidget) -> None:
         from PySide6.QtWidgets import QLineEdit
+
         assert auth_widget.sa_panel.token_field.echoMode() == QLineEdit.EchoMode.Password
 
-    def test_has_auth_header_combo_with_basic_and_bearer(
-        self, auth_widget: AuthWidget
-    ) -> None:
+    def test_has_auth_header_combo_with_basic_and_bearer(self, auth_widget: AuthWidget) -> None:
         combo = auth_widget.sa_panel.auth_header_combo
         items = [combo.itemText(i) for i in range(combo.count())]
         assert "Basic" in items
@@ -124,6 +121,7 @@ class TestUserPanelFields:
 
     def test_has_token_field_password_mode(self, auth_widget: AuthWidget) -> None:
         from PySide6.QtWidgets import QLineEdit
+
         assert auth_widget.user_panel.token_field.echoMode() == QLineEdit.EchoMode.Password
 
 
@@ -239,9 +237,7 @@ class TestCloudIdDiscovery:
         auth_widget.sa_panel.discovery_url_field.setText("https://company.atlassian.net")
 
         qtbot.mouseClick(auth_widget.sa_panel.discover_btn, Qt.MouseButton.LeftButton)
-        qtbot.waitUntil(
-            lambda: auth_widget.sa_panel.discover_btn.isEnabled(), timeout=3000
-        )
+        qtbot.waitUntil(lambda: auth_widget.sa_panel.discover_btn.isEnabled(), timeout=3000)
 
         assert auth_widget.sa_panel.cloud_id_field.text() == _FAKE_CLOUD_ID
 
@@ -261,9 +257,7 @@ class TestCloudIdDiscovery:
         assert not auth_widget.sa_panel.discover_btn.isEnabled()
 
         barrier.set()
-        qtbot.waitUntil(
-            lambda: auth_widget.sa_panel.discover_btn.isEnabled(), timeout=3000
-        )
+        qtbot.waitUntil(lambda: auth_widget.sa_panel.discover_btn.isEnabled(), timeout=3000)
 
     def test_discover_failure_shown_in_status_label(
         self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
@@ -272,9 +266,7 @@ class TestCloudIdDiscovery:
         auth_widget.sa_panel.discovery_url_field.setText("https://bad.example.com")
 
         qtbot.mouseClick(auth_widget.sa_panel.discover_btn, Qt.MouseButton.LeftButton)
-        qtbot.waitUntil(
-            lambda: auth_widget.sa_panel.discover_btn.isEnabled(), timeout=3000
-        )
+        qtbot.waitUntil(lambda: auth_widget.sa_panel.discover_btn.isEnabled(), timeout=3000)
 
         assert "Discovery failed" in auth_widget.status_label.text()
 
@@ -327,9 +319,7 @@ class TestKeyring:
         auth_widget.save_token_cb.setChecked(True)
         auth_widget.save_token_cb.setChecked(False)
 
-        mock_svc.delete_token.assert_called_once_with(
-            AuthMode.SERVICE_ACCOUNT, "cloud-id-123"
-        )
+        mock_svc.delete_token.assert_called_once_with(AuthMode.SERVICE_ACCOUNT, "cloud-id-123")
 
     def test_keyring_no_delete_when_identifier_empty(
         self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
@@ -380,9 +370,7 @@ class TestQSettingsRoundTrip:
 
 
 class TestIsValidServiceAccount:
-    def test_valid_sa_when_all_fields_filled(
-        self, auth_widget: AuthWidget
-    ) -> None:
+    def test_valid_sa_when_all_fields_filled(self, auth_widget: AuthWidget) -> None:
         _fill_sa_fields(auth_widget)
         assert auth_widget.is_valid() is True
 
@@ -410,29 +398,21 @@ class TestIsValidUserToken:
         w.user_panel.email_field.setText("me@example.com")
         w.user_panel.token_field.setText("my-token")
 
-    def test_valid_user_when_all_fields_filled(
-        self, auth_widget: AuthWidget
-    ) -> None:
+    def test_valid_user_when_all_fields_filled(self, auth_widget: AuthWidget) -> None:
         self._fill_user_fields(auth_widget)
         assert auth_widget.is_valid() is True
 
-    def test_invalid_user_when_site_url_empty(
-        self, auth_widget: AuthWidget
-    ) -> None:
+    def test_invalid_user_when_site_url_empty(self, auth_widget: AuthWidget) -> None:
         self._fill_user_fields(auth_widget)
         auth_widget.user_panel.site_url_field.setText("")
         assert auth_widget.is_valid() is False
 
-    def test_invalid_user_when_email_empty(
-        self, auth_widget: AuthWidget
-    ) -> None:
+    def test_invalid_user_when_email_empty(self, auth_widget: AuthWidget) -> None:
         self._fill_user_fields(auth_widget)
         auth_widget.user_panel.email_field.setText("")
         assert auth_widget.is_valid() is False
 
-    def test_invalid_user_when_token_empty(
-        self, auth_widget: AuthWidget
-    ) -> None:
+    def test_invalid_user_when_token_empty(self, auth_widget: AuthWidget) -> None:
         self._fill_user_fields(auth_widget)
         auth_widget.user_panel.token_field.setText("")
         assert auth_widget.is_valid() is False
@@ -444,27 +424,19 @@ class TestIsValidUserToken:
 
 
 class TestValidationChangedSignal:
-    def test_emitted_on_sa_cloud_id_change(
-        self, qtbot, auth_widget: AuthWidget
-    ) -> None:
+    def test_emitted_on_sa_cloud_id_change(self, qtbot, auth_widget: AuthWidget) -> None:
         with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
             auth_widget.sa_panel.cloud_id_field.setText("new-id")
 
-    def test_emitted_on_sa_email_change(
-        self, qtbot, auth_widget: AuthWidget
-    ) -> None:
+    def test_emitted_on_sa_email_change(self, qtbot, auth_widget: AuthWidget) -> None:
         with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
             auth_widget.sa_panel.email_field.setText("bot@sa.atlassian.com")
 
-    def test_emitted_on_sa_token_change(
-        self, qtbot, auth_widget: AuthWidget
-    ) -> None:
+    def test_emitted_on_sa_token_change(self, qtbot, auth_widget: AuthWidget) -> None:
         with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
             auth_widget.sa_panel.token_field.setText("secret")
 
-    def test_emitted_on_user_site_url_change(
-        self, qtbot, auth_widget: AuthWidget
-    ) -> None:
+    def test_emitted_on_user_site_url_change(self, qtbot, auth_widget: AuthWidget) -> None:
         with qtbot.waitSignal(auth_widget.validation_changed, timeout=500):
             auth_widget.user_panel.site_url_field.setText("https://co.atlassian.net")
 
@@ -528,9 +500,7 @@ class TestConnectionVerifiedSignal:
         assert len(invalidated) == 1
 
     # AV-5: connection_invalidated NOT emitted when field changes before verify
-    def test_invalidated_not_emitted_before_verify(
-        self, qtbot, auth_widget: AuthWidget
-    ) -> None:
+    def test_invalidated_not_emitted_before_verify(self, qtbot, auth_widget: AuthWidget) -> None:
         invalidated: list[None] = []
         auth_widget.connection_invalidated.connect(lambda: invalidated.append(None))
         auth_widget.sa_panel.cloud_id_field.setText("some-cloud-id")
@@ -565,3 +535,141 @@ class TestConnectionVerifiedSignal:
         assert auth_widget._verified is True
         auth_widget.sa_panel.cloud_id_field.setText("something-different")
         assert auth_widget._verified is False
+
+
+# ---------------------------------------------------------------------------
+# JWE-36: segmented auth-mode control (styled QRadioButtons as pill)
+# ---------------------------------------------------------------------------
+
+
+class TestSegmentedControl:
+    def test_sa_radio_has_auth_mode_btn_objectname(self, auth_widget: AuthWidget) -> None:
+        assert auth_widget.sa_radio.objectName() == "authModeBtn"
+
+    def test_user_radio_has_auth_mode_btn_objectname(self, auth_widget: AuthWidget) -> None:
+        assert auth_widget.user_radio.objectName() == "authModeBtn"
+
+    def test_auth_mode_selector_is_qframe(self, auth_widget: AuthWidget) -> None:
+        from PySide6.QtWidgets import QFrame
+
+        assert isinstance(auth_widget.auth_mode_selector, QFrame)
+
+    def test_auth_mode_selector_has_pill_objectname(self, auth_widget: AuthWidget) -> None:
+        assert auth_widget.auth_mode_selector.objectName() == "authModePill"
+
+    def test_sa_radio_in_pill(self, auth_widget: AuthWidget) -> None:
+        assert auth_widget.sa_radio.parent() is auth_widget.auth_mode_selector
+
+    def test_user_radio_in_pill(self, auth_widget: AuthWidget) -> None:
+        assert auth_widget.user_radio.parent() is auth_widget.auth_mode_selector
+
+    def test_sa_checked_drives_sa_mode(self, auth_widget: AuthWidget) -> None:
+        auth_widget.user_radio.click()
+        auth_widget.sa_radio.click()
+        assert auth_widget.stack.currentIndex() == 0
+
+    def test_user_checked_drives_user_mode(self, auth_widget: AuthWidget) -> None:
+        auth_widget.user_radio.click()
+        assert auth_widget.stack.currentIndex() == 1
+
+    def test_radios_mutually_exclusive(self, auth_widget: AuthWidget) -> None:
+        auth_widget.user_radio.click()
+        assert not auth_widget.sa_radio.isChecked()
+        auth_widget.sa_radio.click()
+        assert not auth_widget.user_radio.isChecked()
+
+
+# ---------------------------------------------------------------------------
+# JWE-36: password-reveal eye toggle
+# ---------------------------------------------------------------------------
+
+
+class TestPasswordEye:
+    def test_sa_panel_token_has_trailing_action(self, auth_widget: AuthWidget) -> None:
+        assert len(auth_widget.sa_panel.token_field.actions()) >= 1
+
+    def test_user_panel_token_has_trailing_action(self, auth_widget: AuthWidget) -> None:
+        assert len(auth_widget.user_panel.token_field.actions()) >= 1
+
+    def test_sa_token_starts_password_mode(self, auth_widget: AuthWidget) -> None:
+        from PySide6.QtWidgets import QLineEdit
+
+        assert auth_widget.sa_panel.token_field.echoMode() == QLineEdit.EchoMode.Password
+
+    def test_sa_eye_reveals_text_on_first_trigger(self, auth_widget: AuthWidget) -> None:
+        from PySide6.QtWidgets import QLineEdit
+
+        auth_widget.sa_panel._eye_action.trigger()
+        assert auth_widget.sa_panel.token_field.echoMode() == QLineEdit.EchoMode.Normal
+
+    def test_sa_eye_hides_text_on_second_trigger(self, auth_widget: AuthWidget) -> None:
+        from PySide6.QtWidgets import QLineEdit
+
+        auth_widget.sa_panel._eye_action.trigger()
+        auth_widget.sa_panel._eye_action.trigger()
+        assert auth_widget.sa_panel.token_field.echoMode() == QLineEdit.EchoMode.Password
+
+    def test_user_token_starts_password_mode(self, auth_widget: AuthWidget) -> None:
+        from PySide6.QtWidgets import QLineEdit
+
+        assert auth_widget.user_panel.token_field.echoMode() == QLineEdit.EchoMode.Password
+
+    def test_user_eye_reveals_text_on_trigger(self, auth_widget: AuthWidget) -> None:
+        from PySide6.QtWidgets import QLineEdit
+
+        auth_widget.user_panel._eye_action.trigger()
+        assert auth_widget.user_panel.token_field.echoMode() == QLineEdit.EchoMode.Normal
+
+
+# ---------------------------------------------------------------------------
+# JWE-36: [invalid] property toggling on validation
+# ---------------------------------------------------------------------------
+
+
+class TestInvalidProperty:
+    def test_sa_fields_not_invalid_before_any_change(self, auth_widget: AuthWidget) -> None:
+        # _update_invalid_state has not run yet; all properties are unset (falsy)
+        assert not auth_widget.sa_panel.cloud_id_field.property("invalid")
+        assert not auth_widget.sa_panel.email_field.property("invalid")
+        assert not auth_widget.sa_panel.token_field.property("invalid")
+
+    def test_empty_required_field_marked_invalid_after_sibling_change(
+        self, auth_widget: AuthWidget
+    ) -> None:
+        # Trigger _on_field_changed by filling then clearing cloud_id.
+        # After the setText(""), _update_invalid_state runs: cloud_id empty → invalid.
+        auth_widget.sa_panel.cloud_id_field.setText("cloud-123")
+        auth_widget.sa_panel.cloud_id_field.setText("")
+        assert auth_widget.sa_panel.cloud_id_field.property("invalid") is True
+
+    def test_filled_required_field_cleared_of_invalid(self, auth_widget: AuthWidget) -> None:
+        auth_widget.sa_panel.cloud_id_field.setText("cloud-123")
+        assert auth_widget.sa_panel.cloud_id_field.property("invalid") is False
+
+    def test_inactive_panel_fields_not_marked_invalid_in_sa_mode(
+        self, auth_widget: AuthWidget
+    ) -> None:
+        # In SA mode, user panel required fields should never be marked invalid.
+        auth_widget.sa_panel.cloud_id_field.setText("trigger")
+        assert not auth_widget.user_panel.site_url_field.property("invalid")
+        assert not auth_widget.user_panel.email_field.property("invalid")
+
+    def test_mode_switch_clears_invalid_on_old_panel(self, auth_widget: AuthWidget) -> None:
+        # Mark SA panel as invalid, then switch to user mode.
+        # SA panel fields should be cleared (not invalid in inactive mode).
+        auth_widget.sa_panel.cloud_id_field.setText("x")
+        auth_widget.sa_panel.cloud_id_field.setText("")  # invalid=True on cloud_id
+        auth_widget.user_radio.click()  # switch mode → _on_field_changed fires
+        assert not auth_widget.sa_panel.cloud_id_field.property("invalid")
+
+    def test_no_signal_loop_on_re_polish(self, qtbot, auth_widget: AuthWidget) -> None:
+        # setProperty/unpolish/polish must not re-emit validation_changed.
+        # Count emissions: exactly one per setText call, not more.
+        count: list[None] = []
+        auth_widget.validation_changed.connect(lambda: count.append(None))
+        auth_widget.sa_panel.cloud_id_field.setText("abc")
+        assert len(count) == 1  # exactly one, not cascading
+
+    def test_discover_btn_width_unrestricted(self, auth_widget: AuthWidget) -> None:
+        # setFixedWidth(80) removed; button may now grow with content.
+        assert auth_widget.sa_panel.discover_btn.maximumWidth() > 80

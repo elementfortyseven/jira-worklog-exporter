@@ -166,16 +166,48 @@ class TestQSettings:
         widget.load_settings(isolated_settings)
         assert widget.project_keys_field.text() == "PROJ, SUPP"
 
-    def test_from_date_not_saved(
-        self, widget: FilterWidget, isolated_settings: QSettings
-    ) -> None:
+    def test_from_date_not_saved(self, widget: FilterWidget, isolated_settings: QSettings) -> None:
         widget.from_date.setDate(QDate(2025, 3, 15))
         widget.save_settings(isolated_settings)
         assert isolated_settings.value("filter/from_date") is None
 
-    def test_to_date_not_saved(
-        self, widget: FilterWidget, isolated_settings: QSettings
-    ) -> None:
+    def test_to_date_not_saved(self, widget: FilterWidget, isolated_settings: QSettings) -> None:
         widget.to_date.setDate(QDate(2025, 3, 15))
         widget.save_settings(isolated_settings)
         assert isolated_settings.value("filter/to_date") is None
+
+
+# ---------------------------------------------------------------------------
+# JWE-36: [invalid] property toggling
+# ---------------------------------------------------------------------------
+
+
+class TestInvalidProperty:
+    def test_inverted_date_range_marks_both_dates_invalid(self, widget: FilterWidget) -> None:
+        widget.from_date.setDate(QDate(2025, 2, 15))
+        widget.to_date.setDate(QDate(2025, 1, 20))
+        assert widget.from_date.property("invalid") is True
+        assert widget.to_date.property("invalid") is True
+
+    def test_valid_date_range_clears_invalid_on_both_dates(self, widget: FilterWidget) -> None:
+        widget.from_date.setDate(QDate(2025, 2, 15))
+        widget.to_date.setDate(QDate(2025, 1, 20))  # inverted
+        widget.from_date.setDate(QDate(2025, 1, 10))  # now valid
+        assert not widget.from_date.property("invalid")
+        assert not widget.to_date.property("invalid")
+
+    def test_bad_project_key_format_marks_field_invalid(self, widget: FilterWidget) -> None:
+        widget.project_keys_field.setText("bad-key")
+        assert widget.project_keys_field.property("invalid") is True
+
+    def test_empty_project_keys_not_marked_invalid(self, widget: FilterWidget) -> None:
+        # Empty is valid (no filter); field must not show as invalid.
+        widget.project_keys_field.setText("PROJ")
+        widget.project_keys_field.setText("")
+        assert not widget.project_keys_field.property("invalid")
+
+    def test_no_signal_loop_on_re_polish(self, qtbot, widget: FilterWidget) -> None:
+        count: list[None] = []
+        widget.validation_changed.connect(lambda: count.append(None))
+        widget.from_date.setDate(QDate(2025, 1, 15))
+        assert len(count) == 1  # exactly one, not cascading

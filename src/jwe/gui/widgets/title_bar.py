@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QMouseEvent, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QWidget
 
@@ -123,6 +123,12 @@ class TitleBar(QFrame):
         self.win_max_btn.clicked.connect(self.maximize_requested)
         self.win_close_btn.clicked.connect(self.close_requested)
 
+        # Hover tracking so we can swap the close-X icon to white on red bg.
+        # QSS color: #FFFFFF on winClose:hover has no effect on a baked QIcon,
+        # so we re-render the glyph on HoverEnter / HoverLeave instead.
+        self.win_close_btn.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self.win_close_btn.installEventFilter(self)
+
         self._apply_ctrl_icons()
 
     # ------------------------------------------------------------------
@@ -141,6 +147,19 @@ class TitleBar(QFrame):
         ):
             btn.setIcon(_ctrl_icon(shape, stroke, dpr))
             btn.setIconSize(sz)
+
+    # ------------------------------------------------------------------
+    # Event filter — close-button hover icon swap
+    # ------------------------------------------------------------------
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self.win_close_btn:
+            dpr = _screen_dpr()
+            if event.type() == QEvent.Type.HoverEnter:
+                self.win_close_btn.setIcon(_ctrl_icon("close", QColor(Qt.GlobalColor.white), dpr))
+            elif event.type() == QEvent.Type.HoverLeave:
+                self.win_close_btn.setIcon(_ctrl_icon("close", QColor(tokens.Text.SECONDARY), dpr))
+        return super().eventFilter(watched, event)
 
     # ------------------------------------------------------------------
     # Language toggle
