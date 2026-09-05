@@ -398,7 +398,9 @@ class MainWindow(QMainWindow):
             return
 
         # Non-Windows: manual geometry management for the frameless path.
-        outer_layout = cast(QVBoxLayout, self.centralWidget().layout())
+        central = self.centralWidget()
+        assert central is not None  # always set in _build_ui
+        outer_layout = cast(QVBoxLayout, central.layout())
         if self._maximized:
             self._maximized = False
             if self._shadow_effect is not None:
