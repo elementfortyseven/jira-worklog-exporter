@@ -420,6 +420,24 @@ class TestConnectionVerifiedWiring:
         mock_svc.search_users.assert_called_once_with(_SA_CONFIG, "alice")
 
 
+class TestIdentityStripWiring:
+    def test_hidden_before_identity_verified(self, main_window: MainWindow) -> None:
+        assert main_window.identity_strip.isHidden()
+
+    def test_shown_after_identity_verified(self, main_window: MainWindow) -> None:
+        main_window.auth_widget.identity_verified.emit("Bot User", "acc-1")
+        assert not main_window.identity_strip.isHidden()
+
+    def test_hidden_again_after_connection_invalidated(self, main_window: MainWindow) -> None:
+        main_window.auth_widget.identity_verified.emit("Bot User", "acc-1")
+        main_window.auth_widget.connection_invalidated.emit()
+        assert main_window.identity_strip.isHidden()
+
+    def test_stays_hidden_without_any_signal(self, main_window: MainWindow) -> None:
+        main_window.auth_widget.connection_invalidated.emit()
+        assert main_window.identity_strip.isHidden()
+
+
 # ---------------------------------------------------------------------------
 # JWE-50: TitleBar.set_maximized icon toggle
 # ---------------------------------------------------------------------------

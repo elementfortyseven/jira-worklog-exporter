@@ -78,6 +78,14 @@ STRINGS: dict[str, dict[str, str]] = {
         "auth.status.testing": "Testing...",
         "auth.status.connected": "Connected as {display_name} ({email})",
         "auth.status.cloud_id_found": "Cloud ID found: {cloud_id}",
+        # Connection chip
+        "chip.testing": "Testing",
+        "chip.connected": "Connected",
+        "chip.error": "Error",
+        # ---------------------------------------------------------------- idstrip.*
+        "idstrip.connected_as": "Connected as {name}",
+        "idstrip.copy_hint": "click to copy",
+        "idstrip.copied": "Copied",
         # ---------------------------------------------------------------- filter.*
         "filter.label.from": "From",
         "filter.label.to": "To",
@@ -168,6 +176,14 @@ STRINGS: dict[str, dict[str, str]] = {
         "auth.status.testing": "Wird getestet...",
         "auth.status.connected": "Verbunden als {display_name} ({email})",
         "auth.status.cloud_id_found": "Cloud-ID gefunden: {cloud_id}",
+        # Connection chip
+        "chip.testing": "Wird getestet",
+        "chip.connected": "Verbunden",
+        "chip.error": "Fehler",
+        # ---------------------------------------------------------------- idstrip.*
+        "idstrip.connected_as": "Verbunden als {name}",
+        "idstrip.copy_hint": "zum Kopieren klicken",
+        "idstrip.copied": "Kopiert",
         # ---------------------------------------------------------------- filter.*
         "filter.label.from": "Von",
         "filter.label.to": "Bis",

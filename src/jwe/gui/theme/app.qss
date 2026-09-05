@@ -11,6 +11,13 @@ QWidget {
     font-family: %(font.sans)s;
     font-size: 13px;
 }
+/* Scroll body backdrop: the card gaps, side margins and the space below the
+   last card show this. Without it the transparent scroll viewport falls
+   through to Fusion's light default (JWE-37 fix; superseded by the themed
+   QPalette in JWE-56). */
+QWidget#scrollContent {
+    background: %(bg.window)s;
+}
 
 /* ---- Section cards (SectionCard / QGroupBox legacy) ---- */
 QFrame#sectionCard {
@@ -427,4 +434,63 @@ QCalendarWidget QMenu {
 QCalendarWidget QMenu::item:selected {
     background: %(accent.base)s;
     color: %(accent.ink)s;
+}
+
+/* ---- Identity strip (JWE-37) ---- */
+QWidget#idStrip {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 rgba(34,211,238,0.08), stop:0.6 transparent);
+    border-bottom: 1px solid %(line.soft)s;
+}
+QLabel#idStripDot {
+    background: %(status.ok)s;
+    border-radius: 4px;
+}
+QLabel#idStripLabel {
+    font-family: %(font.mono)s;
+    font-size: 11px;
+    color: %(text.secondary)s;
+    background: transparent;
+}
+
+/* ---- Status chip (JWE-37) ---- */
+QFrame#chip {
+    background: transparent;
+    border: 1px solid %(line.hairline)s;
+    border-radius: 999px;
+}
+QFrame#chip QLabel#chipLabel {
+    font-family: %(font.mono)s;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: %(text.secondary)s;
+    background: transparent;
+}
+QFrame#chip[variant="ok"] {
+    border-color: %(status.ok)s;
+}
+QFrame#chip[variant="ok"] QLabel#chipLabel {
+    color: %(status.ok)s;
+}
+QFrame#chip[variant="error"] {
+    border-color: %(status.err)s;
+}
+QFrame#chip[variant="error"] QLabel#chipLabel {
+    color: %(status.err)s;
+}
+QFrame#chip[variant="testing"] {
+    border-color: %(accent.base)s;
+}
+QFrame#chip[variant="testing"] QLabel#chipLabel {
+    color: %(accent.base)s;
+}
+QLabel#chipDot {
+    background: %(status.ok)s;
+    border-radius: 4px;
+}
+QLabel#chipSpinner {
+    background: transparent;
+    border: 2px solid rgba(34,211,238,0.22);
+    border-top-color: %(accent.base)s;
+    border-radius: 6px;
 }

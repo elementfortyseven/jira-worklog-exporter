@@ -44,6 +44,7 @@ from jwe.config import ColumnProfile, ExportConfig
 from jwe.gui.theme.tokens import WINDOW_SHADOW
 from jwe.gui.widgets.auth import AuthWidget
 from jwe.gui.widgets.filter import FilterWidget
+from jwe.gui.widgets.identity_strip import IdentityStrip
 from jwe.gui.widgets.output import OutputWidget
 from jwe.gui.widgets.section_card import SectionCard
 from jwe.gui.widgets.status import StatusWidget
@@ -151,6 +152,7 @@ class MainWindow(QMainWindow):
         self.output_widget = OutputWidget()
         self.status_widget = StatusWidget()
         self.title_bar = TitleBar()
+        self.identity_strip = IdentityStrip()
 
         self._export_worker = ExportWorker(self._svc.run_export)
         self._export_thread = QThread()
@@ -220,11 +222,14 @@ class MainWindow(QMainWindow):
         frame_layout.setSpacing(0)
 
         frame_layout.addWidget(self.title_bar)
+        frame_layout.addWidget(self.identity_strip)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         content = QWidget()
+        content.setObjectName("scrollContent")
+        content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(8, 8, 8, 8)
         content_layout.setSpacing(8)
@@ -273,6 +278,8 @@ class MainWindow(QMainWindow):
 
         self.auth_widget.connection_verified.connect(self._on_connection_verified)
         self.auth_widget.connection_invalidated.connect(self._on_connection_invalidated)
+        self.auth_widget.identity_verified.connect(self.identity_strip.set_identity)
+        self.auth_widget.connection_invalidated.connect(self.identity_strip.clear)
 
         self.status_widget.open_csv_btn.clicked.connect(self._on_open_csv_clicked)
         self.status_widget.open_folder_btn.clicked.connect(self._on_open_folder_clicked)
@@ -734,6 +741,7 @@ class MainWindow(QMainWindow):
     def _retranslate_all(self, lang: str) -> None:
         self.setWindowTitle(t("app.title", lang))
         self.title_bar.retranslate_ui(lang)
+        self.identity_strip.retranslate_ui(lang)
         self._auth_card.retranslate_ui(lang)
         self._users_card.retranslate_ui(lang)
         self._filter_card.retranslate_ui(lang)

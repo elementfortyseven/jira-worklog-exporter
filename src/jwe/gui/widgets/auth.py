@@ -30,6 +30,7 @@ import jwe.service as _default_svc
 from jwe.api.auth import AuthHeaderStyle, AuthMode
 from jwe.config import ExportConfig
 from jwe.gui.theme import tokens
+from jwe.gui.widgets.chip import Chip
 from jwe.gui.workers.cloud_id_discover import CloudIdDiscoverWorker
 from jwe.gui.workers.connection_test import ConnectionTestWorker
 from jwe.i18n import DEFAULT_LANG, diag, t
@@ -225,6 +226,7 @@ class AuthWidget(QWidget):
     validation_changed = Signal()
     connection_verified = Signal(object)  # payload: ExportConfig
     connection_invalidated = Signal()
+    identity_verified = Signal(str, str)  # display_name, account_id
 
     def __init__(
         self,
@@ -297,8 +299,10 @@ class AuthWidget(QWidget):
         test_layout = QHBoxLayout(test_row)
         test_layout.setContentsMargins(0, 0, 0, 0)
         self.test_btn = QPushButton()
+        self.conn_chip = Chip()
         self.status_label = QLabel("")
         test_layout.addWidget(self.test_btn)
+        test_layout.addWidget(self.conn_chip)
         test_layout.addWidget(self.status_label, 1)
         outer.addWidget(test_row)
 
@@ -480,6 +484,7 @@ class AuthWidget(QWidget):
 
     def _on_test_connection_clicked(self) -> None:
         self.test_btn.setEnabled(False)
+        self.conn_chip.set_state("testing", t("chip.testing", self._lang))
         self.status_label.setText(t("auth.status.testing", self._lang))
         config = self.get_export_config_partial()
         self._last_test_config = config  # stored so _on_conn_finished can emit it
@@ -498,10 +503,9 @@ class AuthWidget(QWidget):
         self._conn_worker = worker
         thread.start()
 
-    def _on_conn_finished(self, display_name: str, email: str) -> None:
-        self.status_label.setText(
-            t("auth.status.connected", self._lang, display_name=display_name, email=email)
-        )
+    def _on_conn_finished(self, display_name: str, email: str, account_id: str) -> None:
+        self.conn_chip.set_state("ok", t("chip.connected", self._lang))
+        self.status_label.setText("")
         if self.save_token_cb.isChecked():
             identifier = self._current_identifier()
             token = self._current_token_field().text()
@@ -509,10 +513,12 @@ class AuthWidget(QWidget):
                 with contextlib.suppress(RuntimeError):
                     self._svc.save_token(self._current_mode(), identifier, token)
         self._verified = True
+        self.identity_verified.emit(display_name, account_id)
         if self._last_test_config is not None:
             self.connection_verified.emit(self._last_test_config)
 
     def _on_conn_failed(self, message: str) -> None:
+        self.conn_chip.set_state("error", t("chip.error", self._lang))
         self.status_label.setText(message)
         self._verified = False
 
@@ -636,5 +642,11 @@ class AuthWidget(QWidget):
         self.user_radio.setText(t("auth.radio.user_token", lang))
         self.save_token_cb.setText(t("auth.checkbox.save_token", lang))
         self.test_btn.setText(t("auth.btn.test_connection", lang))
+        # Re-translate the connection chip's current state label (JWE-37) so a
+        # live DE/EN toggle updates a persistent testing/ok/error chip.
+        _chip_keys = {"testing": "chip.testing", "ok": "chip.connected", "error": "chip.error"}
+        _variant = self.conn_chip.property("variant")
+        if _variant in _chip_keys:
+            self.conn_chip.set_state(_variant, t(_chip_keys[_variant], lang))
         self.sa_panel.retranslate_ui(lang)
         self.user_panel.retranslate_ui(lang)

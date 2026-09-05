@@ -160,7 +160,7 @@ class TestConnectionTest:
         barrier.set()
         qtbot.waitUntil(lambda: auth_widget.test_btn.isEnabled(), timeout=3000)
 
-    def test_connect_success_updates_status_label(
+    def test_connect_success_blanks_status_label(
         self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
     ) -> None:
         mock_svc.test_connection.return_value = _FAKE_USER
@@ -169,7 +169,47 @@ class TestConnectionTest:
         qtbot.mouseClick(auth_widget.test_btn, Qt.MouseButton.LeftButton)
         qtbot.waitUntil(lambda: auth_widget.test_btn.isEnabled(), timeout=3000)
 
-        assert "Bot User" in auth_widget.status_label.text()
+        assert auth_widget.status_label.text() == ""
+
+    def test_connect_success_sets_chip_ok_variant(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        mock_svc.test_connection.return_value = _FAKE_USER
+        _fill_sa_fields(auth_widget)
+
+        qtbot.mouseClick(auth_widget.test_btn, Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(lambda: auth_widget.test_btn.isEnabled(), timeout=3000)
+
+        assert auth_widget.conn_chip.property("variant") == "ok"
+
+    def test_connect_click_sets_chip_testing_variant_immediately(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        barrier = threading.Event()
+
+        def slow_test(config):  # type: ignore[no-untyped-def]
+            barrier.wait(timeout=5.0)
+            return _FAKE_USER
+
+        mock_svc.test_connection.side_effect = slow_test
+        _fill_sa_fields(auth_widget)
+
+        qtbot.mouseClick(auth_widget.test_btn, Qt.MouseButton.LeftButton)
+        assert auth_widget.conn_chip.property("variant") == "testing"
+
+        barrier.set()
+        qtbot.waitUntil(lambda: auth_widget.test_btn.isEnabled(), timeout=3000)
+
+    def test_connect_success_emits_identity_verified_with_account_id(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        mock_svc.test_connection.return_value = _FAKE_USER
+        _fill_sa_fields(auth_widget)
+
+        with qtbot.waitSignal(auth_widget.identity_verified, timeout=3000) as blocker:
+            qtbot.mouseClick(auth_widget.test_btn, Qt.MouseButton.LeftButton)
+
+        assert blocker.args == ["Bot User", "acc-1"]
 
     def test_connect_auth_error_shows_specific_message(
         self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
@@ -183,6 +223,31 @@ class TestConnectionTest:
         text = auth_widget.status_label.text()
         assert "Authentication failed" in text
         assert "scopes" in text
+
+    def test_connect_auth_error_sets_chip_error_variant(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        mock_svc.test_connection.side_effect = AuthenticationError("bad token")
+        _fill_sa_fields(auth_widget)
+
+        qtbot.mouseClick(auth_widget.test_btn, Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(lambda: auth_widget.test_btn.isEnabled(), timeout=3000)
+
+        assert auth_widget.conn_chip.property("variant") == "error"
+
+    def test_connect_auth_error_does_not_emit_identity_verified(
+        self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
+    ) -> None:
+        mock_svc.test_connection.side_effect = AuthenticationError("bad token")
+        _fill_sa_fields(auth_widget)
+
+        received: list[tuple[str, str]] = []
+        auth_widget.identity_verified.connect(lambda name, acc: received.append((name, acc)))
+
+        qtbot.mouseClick(auth_widget.test_btn, Qt.MouseButton.LeftButton)
+        qtbot.waitUntil(lambda: auth_widget.test_btn.isEnabled(), timeout=3000)
+
+        assert received == []
 
     def test_connect_permission_error_shows_specific_message(
         self, qtbot, auth_widget: AuthWidget, mock_svc: MagicMock
